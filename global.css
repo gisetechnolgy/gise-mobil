@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'PoppinsRegular', 'Poppins', sans-serif;
+    font-style: normal;
+    font-weight: 400;
+    color: rgb(52, 61, 72);
+    font-size: 16px;
+    line-height: 24px;
+  }
+}

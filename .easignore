@@ -1,0 +1,6 @@
+# Keep local build context small
+node_modules/.cache/
+.expo/
+dist/
+web-build/
+app-example/
