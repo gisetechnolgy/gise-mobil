@@ -1,5 +1,9 @@
 import { api } from './api';
 import { getAppLocale } from './appLocale';
+import {
+  applyCommissionMarkup,
+  type CommissionMeta,
+} from './commission';
 import type { GiseListResponse } from './giseMappers';
 import { formatPriceTl } from './startingPrice';
 
@@ -20,6 +24,10 @@ export type EventProductItem = {
   category: string | null;
   soldOut: boolean;
   remaining: number;
+  hasDownPayment?: boolean;
+  downPaymentAmount?: number | null;
+  /** Kapora ürünlerinde biletin tam fiyatı (price = şimdi ödenen kapora). */
+  fullPrice?: number;
 };
 
 function pickLocalized(
@@ -52,6 +60,7 @@ function toProduct(
   item: Record<string, unknown>,
   category: string | null,
   locale: string,
+  commission?: CommissionMeta | null,
 ): EventProductItem | null {
   const id = typeof item.id === 'string' ? item.id : '';
   if (!id) return null;
@@ -68,22 +77,33 @@ function toProduct(
   const remaining = Math.max(0, remainingRaw);
   const soldOut = status === 1 || remaining <= 0;
 
-  const price = Number(item.price);
+  // Web: komisyon price / promotion'a uygulanır; kapora tutarına değil.
+  const listPrice = applyCommissionMarkup(Number(item.price), commission);
   const title = pickLocalized(item.title, locale).trim();
   const descriptionHtml = pickLocalized(item.description, locale);
   const description = hasDescription(descriptionHtml)
     ? stripHtml(descriptionHtml)
     : '';
 
+  const hasDownPayment = Boolean(item.hasDownPayment);
+  const downRaw = Number(item.downPaymentAmount);
+  const downPaymentAmount =
+    hasDownPayment && Number.isFinite(downRaw) ? downRaw : null;
+  const chargePrice =
+    hasDownPayment && downPaymentAmount != null ? downPaymentAmount : listPrice;
+
   return {
     id,
     title: title || id,
     description,
-    price: Number.isFinite(price) ? price : 0,
-    priceLabel: formatPriceTl(Number.isFinite(price) ? price : 0),
+    price: Number.isFinite(chargePrice) ? chargePrice : 0,
+    priceLabel: formatPriceTl(Number.isFinite(chargePrice) ? chargePrice : 0),
     category,
     soldOut,
     remaining,
+    hasDownPayment,
+    downPaymentAmount,
+    fullPrice: Number.isFinite(listPrice) ? listPrice : 0,
   };
 }
 
@@ -105,6 +125,7 @@ function sortProducts(items: EventProductItem[], raw: Record<string, unknown>[])
 function collectFromStock(
   stockData: unknown,
   locale: string,
+  commission?: CommissionMeta | null,
 ): EventProductItem[] {
   if (Array.isArray(stockData)) {
     const raw = stockData.filter(
@@ -112,7 +133,7 @@ function collectFromStock(
         !!row && typeof row === 'object',
     );
     const items = raw
-      .map((row) => toProduct(row, null, locale))
+      .map((row) => toProduct(row, null, locale, commission))
       .filter((row): row is EventProductItem => !!row);
     return sortProducts(items, raw);
   }
@@ -130,7 +151,7 @@ function collectFromStock(
         !!row && typeof row === 'object',
     );
     const items = raw
-      .map((row) => toProduct(row, category, locale))
+      .map((row) => toProduct(row, category, locale, commission))
       .filter((row): row is EventProductItem => !!row);
     result.push(...sortProducts(items, raw));
   }
@@ -138,8 +159,17 @@ function collectFromStock(
   return result;
 }
 
+/** Seçili seansın ham stok JSON'undan ürün listesi (seans seçici için). */
+export function productsFromStock(
+  stock: unknown,
+  commission?: CommissionMeta | null,
+): EventProductItem[] {
+  return collectFromStock(stock, getAppLocale(), commission);
+}
+
 export async function fetchEventProducts(
   eventId: string,
+  commission?: CommissionMeta | null,
 ): Promise<EventProductItem[]> {
   try {
     const locale = getAppLocale();
@@ -153,7 +183,7 @@ export async function fetchEventProducts(
     >(`/stocks?${qs.toString()}`);
     const rows = (res.data ?? []).filter((row) => row.isActive !== false);
     for (const row of rows) {
-      const products = collectFromStock(row.stock, locale);
+      const products = collectFromStock(row.stock, locale, commission);
       if (products.length > 0) return products;
     }
     return [];

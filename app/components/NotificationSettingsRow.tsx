@@ -3,12 +3,15 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   StyleSheet,
   Switch,
-  View
-} from "react-native";
+  View,
+} from 'react-native';
 import { AppColors } from '../../constants/colors';
-import { AppText as Text } from "@/components/ui/AppText";
+import { AppText as Text } from '@/components/ui/AppText';
+import { useTranslation } from '../context/_LocaleContext';
 import {
   disablePushNotifications,
   enablePushNotifications,
@@ -20,6 +23,7 @@ type Props = {
 };
 
 export default function NotificationSettingsRow({ isTablet = false }: Props) {
+  const { t } = useTranslation();
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -41,6 +45,17 @@ export default function NotificationSettingsRow({ isTablet = false }: Props) {
       if (next) {
         const ok = await enablePushNotifications();
         setEnabled(ok);
+        if (!ok) {
+          Alert.alert(t('notifications'), t('notificationsPermissionDenied'), [
+            { text: t('cancel'), style: 'cancel' },
+            {
+              text: t('openSettings'),
+              onPress: () => {
+                void Linking.openSettings();
+              },
+            },
+          ]);
+        }
       } else {
         await disablePushNotifications();
         setEnabled(false);
@@ -62,7 +77,7 @@ export default function NotificationSettingsRow({ isTablet = false }: Props) {
         />
       </View>
       <Text style={[styles.label, isTablet && styles.labelTablet]}>
-        Bildirimler
+        {t('notifications')}
       </Text>
       {busy ? (
         <ActivityIndicator size="small" color={AppColors.cardText} />

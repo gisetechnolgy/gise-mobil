@@ -11,7 +11,7 @@ import {
 import AuthScreenLayout from "../components/AuthScreenLayout";
 import LanguageToggle from "../components/LanguageToggle";
 import { useAuth } from "../context/AuthContext";
-import { useTranslation } from "../context/LocaleContext";
+import { useTranslation } from "../context/_LocaleContext";
 import { AppColors } from "../../constants/colors";
 import { ApiError } from "../../lib/api";
 import { AppText as Text } from "@/components/ui/AppText";

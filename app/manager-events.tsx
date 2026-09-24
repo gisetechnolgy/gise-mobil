@@ -13,10 +13,10 @@ import { StatusBar } from "expo-status-bar";
 import {
   EventCardImage,
   prefetchEventImages,
-} from "./components/EventCardImage";
+} from "./components/_EventCardImage";
 import LoginPrompt from "./components/LoginPrompt";
 import { useAuth } from "./context/AuthContext";
-import { useTranslation } from "./context/LocaleContext";
+import { useTranslation } from "./context/_LocaleContext";
 import { AppColors } from "../constants/colors";
 import { appRefreshControl } from "../lib/appRefreshControl";
 import {

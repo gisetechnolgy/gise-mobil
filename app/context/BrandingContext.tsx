@@ -9,7 +9,7 @@ import React, {
 import type { ImageSourcePropType } from "react-native";
 import { API_URL } from "../../lib/api";
 import { fetchAppBranding, clearBrandingCache } from "../../lib/brandingSource";
-import { useLocale } from "./LocaleContext";
+import { useLocale } from "./_LocaleContext";
 
 export interface Branding {
   id: string;

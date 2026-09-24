@@ -6,6 +6,7 @@ export type CategoryItem = {
   value: string;
   label: string;
   order: number;
+  icon?: string | { src?: string } | null;
 };
 
 export type SubcategoryItem = {
@@ -34,6 +35,7 @@ export async function fetchCategories(refresh = false): Promise<CategoryItem[]> 
         pickLocalizedText(row.name) ||
         (typeof row.name === 'string' ? row.name : String(row.id ?? '')),
       order: Number(row.order ?? 0),
+      icon: row.icon ?? null,
     }))
     .filter((c) => c.id)
     .sort((a, b) => a.order - b.order);
@@ -61,6 +63,7 @@ export async function fetchBrowsableCategories(
         pickLocalizedText(row.name) ||
         (typeof row.name === 'string' ? row.name : String(row.id ?? '')),
       order: Number(row.order ?? 0),
+      icon: row.icon ?? null,
     }))
     .filter((c) => c.id)
     .sort((a, b) => a.order - b.order);

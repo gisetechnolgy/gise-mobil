@@ -1,8 +1,9 @@
-import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import { PermissionsAndroid, Platform } from 'react-native';
 import { api } from './api';
+import { getNotifications } from './expoNotificationsSafe';
+import { ensurePushNotificationHandler } from './pushNotificationHandler';
 import {
   isPushNotificationsOptedOut,
   readPushNotificationsEnabled,
@@ -10,15 +11,52 @@ import {
 } from './pushNotificationPrefs';
 import { secureStorage } from './secureStorage';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+const Notifications = getNotifications();
+ensurePushNotificationHandler();
+
+function androidApiLevel(): number {
+  return typeof Platform.Version === 'number'
+    ? Platform.Version
+    : parseInt(String(Platform.Version), 10) || 0;
+}
+
+/**
+ * Android 13+: POST_NOTIFICATIONS sistem diyaloğu.
+ * Expo Go'da expo-notifications kapalı olduğu için PermissionsAndroid kullanıyoruz.
+ */
+async function requestAndroidNotificationPermission(): Promise<{
+  granted: boolean;
+  canOpenSettings: boolean;
+} | null> {
+  if (Platform.OS !== 'android') return null;
+
+  if (androidApiLevel() < 33) {
+    return { granted: true, canOpenSettings: false };
+  }
+
+  const permission = PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS;
+  if (!permission) {
+    return { granted: false, canOpenSettings: false };
+  }
+
+  try {
+    const already = await PermissionsAndroid.check(permission);
+    if (already) return { granted: true, canOpenSettings: false };
+
+    // Native sistem popup (Kotlin/Java PermissionsAndroid bridge)
+    const result = await PermissionsAndroid.request(permission);
+    if (result === PermissionsAndroid.RESULTS.GRANTED) {
+      return { granted: true, canOpenSettings: false };
+    }
+    // NEVER_ASK_AGAIN → OS bir daha sormaz; aksi halde sonraki açılışta tekrar popup
+    if (result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+      return { granted: false, canOpenSettings: true };
+    }
+    return { granted: false, canOpenSettings: false };
+  } catch {
+    return { granted: false, canOpenSettings: false };
+  }
+}
 
 const TOKEN_TIMEOUT_MS = 20_000;
 
@@ -47,7 +85,7 @@ function resolveProjectId(): string | undefined {
 }
 
 async function ensureAndroidChannel(): Promise<void> {
-  if (Platform.OS !== 'android') return;
+  if (!Notifications || Platform.OS !== 'android') return;
   try {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'Bildirimler',
@@ -61,19 +99,91 @@ async function ensureAndroidChannel(): Promise<void> {
 
 /** Sistem izin diyaloğunu açar (ayarlar toggle / ilk açılış prompt). */
 export async function requestNotificationPermission(): Promise<boolean> {
+  const result = await promptNotificationPermissionOnOpen();
+  return result.granted;
+}
+
+/**
+ * Bildirim paneli açılırken: mümkünse her seferinde OS sistem popup'ını sor.
+ * Ayarlar yalnızca OS "bir daha sorma" dediyse (canAskAgain === false).
+ */
+export async function promptNotificationPermissionOnOpen(): Promise<{
+  granted: boolean;
+  canOpenSettings: boolean;
+}> {
   try {
-    const { status: existing } = await Notifications.getPermissionsAsync();
-    if (existing === 'granted') return true;
-    if (existing === 'denied') return false;
-    const { status } = await Notifications.requestPermissionsAsync();
-    return status === 'granted';
+    if (Platform.OS === 'android') {
+      const androidResult = await requestAndroidNotificationPermission();
+      if (androidResult) {
+        if (androidResult.granted && Notifications) {
+          try {
+            await Notifications.requestPermissionsAsync();
+          } catch {
+            /* opsiyonel */
+          }
+        }
+        return androidResult;
+      }
+    }
+
+    if (!Notifications) {
+      return { granted: false, canOpenSettings: false };
+    }
+
+    const current = await Notifications.getPermissionsAsync();
+    const iosStatus = current.ios?.status;
+    const alreadyGranted =
+      current.granted === true ||
+      current.status === 'granted' ||
+      iosStatus === Notifications.IosAuthorizationStatus.AUTHORIZED ||
+      iosStatus === Notifications.IosAuthorizationStatus.PROVISIONAL ||
+      iosStatus === Notifications.IosAuthorizationStatus.EPHEMERAL;
+
+    if (alreadyGranted) {
+      return { granted: true, canOpenSettings: false };
+    }
+
+    // OS popup'ı açılamıyorsa (daha önce kalıcı red) → ayarlar
+    if (
+      current.status === 'denied' &&
+      current.canAskAgain === false
+    ) {
+      return { granted: false, canOpenSettings: true };
+    }
+
+    // iOS: UNUserNotificationCenter.requestAuthorization (Swift bridge)
+    const next = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+      },
+    });
+
+    const nextIos = next.ios?.status;
+    const granted =
+      next.granted === true ||
+      next.status === 'granted' ||
+      nextIos === Notifications.IosAuthorizationStatus.AUTHORIZED ||
+      nextIos === Notifications.IosAuthorizationStatus.PROVISIONAL ||
+      nextIos === Notifications.IosAuthorizationStatus.EPHEMERAL;
+
+    if (granted) {
+      return { granted: true, canOpenSettings: false };
+    }
+
+    return {
+      granted: false,
+      canOpenSettings: next.canAskAgain === false,
+    };
   } catch {
-    return false;
+    return { granted: false, canOpenSettings: false };
   }
 }
 
 /** İzin verilmişse Expo push token döner; izin istemez. */
 export async function fetchExpoPushTokenIfGranted(): Promise<string | null> {
+  if (!Notifications) return null;
   try {
     if (!Device.isDevice) return null;
 
@@ -99,6 +209,7 @@ export async function fetchExpoPushTokenIfGranted(): Promise<string | null> {
 export async function fetchExpoPushTokenWithPermissionRequest(): Promise<
   string | null
 > {
+  if (!Notifications) return null;
   try {
     if (!Device.isDevice) return null;
     const granted = await requestNotificationPermission();
@@ -162,19 +273,36 @@ export async function syncPushTokenWithBackend(): Promise<void> {
 
 export async function enablePushNotifications(): Promise<boolean> {
   try {
-    const token = await withTimeout(
-      fetchExpoPushTokenWithPermissionRequest(),
-      TOKEN_TIMEOUT_MS + 5_000,
-    );
-    if (!token) {
+    // Profil anahtarı / ayarlar: önce OS sistem popup'ı (Expo Go Android dahil)
+    const perm = await promptNotificationPermissionOnOpen();
+    if (!perm.granted) {
       await writePushNotificationsEnabled(false);
       return false;
     }
-    const ok = await registerPushTokenWithBackend(token);
-    if (!ok) {
-      await writePushNotificationsEnabled(false);
-      return false;
+
+    // İzin var — remote token opsiyonel (Expo Go Android'de Notifications yok)
+    if (!Notifications) {
+      await writePushNotificationsEnabled(true);
+      return true;
     }
+
+    if (!Device.isDevice) {
+      await writePushNotificationsEnabled(true);
+      return true;
+    }
+
+    try {
+      const token = await withTimeout(
+        fetchExpoPushTokenIfGranted(),
+        TOKEN_TIMEOUT_MS,
+      );
+      if (token) {
+        await registerPushTokenWithBackend(token);
+      }
+    } catch {
+      /* token alınamazsa bile OS izni var — anahtar açık kalsın */
+    }
+
     await writePushNotificationsEnabled(true);
     return true;
   } catch {
@@ -199,6 +327,7 @@ export async function disablePushNotifications(): Promise<void> {
 }
 
 export async function setAppIconBadge(count: number): Promise<void> {
+  if (!Notifications) return;
   try {
     await Notifications.setBadgeCountAsync(Math.max(0, count));
   } catch {

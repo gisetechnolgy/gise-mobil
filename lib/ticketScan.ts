@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, ApiError } from './api';
 import { isPastEvent } from './events';
 import {
   mapTicketRecord,
@@ -117,13 +117,29 @@ export function evaluateTicketScan(ticket: TicketItem | null): TicketScanEvaluat
   };
 }
 
+/** Sunucu 403: bilet bu personelin etkinlik/mekân kapsamı dışında. */
+export function isForbiddenError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 403;
+}
+
+export const FORBIDDEN_SCAN_EVALUATION: Omit<TicketScanEvaluation, 'ticket'> = {
+  status: 'error',
+  title: 'Yetkiniz yok',
+  message:
+    'Bu bilet sizin etkinlik / mekân kapsamınızda değil. Yalnızca yetkili olduğunuz etkinliklerin biletlerini okutabilirsiniz.',
+  canUse: false,
+};
+
 export async function lookupTicketScan(
   raw: string,
 ): Promise<TicketScanEvaluation> {
   try {
     const ticket = await fetchTicketByScanValue(raw);
     return evaluateTicketScan(ticket);
-  } catch {
+  } catch (err) {
+    if (isForbiddenError(err)) {
+      return { ...FORBIDDEN_SCAN_EVALUATION, ticket: null };
+    }
     return {
       status: 'error',
       ticket: null,

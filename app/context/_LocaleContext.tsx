@@ -9,6 +9,7 @@ import React, {
 import { setAppLocale, type AppLocale } from '../../lib/appLocale';
 import { clearBrandingCache } from '../../lib/brandingSource';
 import { clearDefinitionsCache } from '../../lib/definitions';
+import { clearHeroFeaturedCache } from '../../lib/heroFeatured';
 import { t, tReplace, type TranslationKey } from '../../lib/i18n';
 import { loadStoredLocale, saveStoredLocale } from '../../lib/localeStorage';
 
@@ -45,6 +46,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     await saveStoredLocale(next);
     clearDefinitionsCache();
     clearBrandingCache();
+    clearHeroFeaturedCache();
   }, []);
 
   const toggleLocale = useCallback(async () => {

@@ -39,6 +39,7 @@ function buildEventListParams(
     page?: number;
     perPage?: number;
     forAdmin?: boolean;
+    q?: string;
   } | undefined,
   status: 'upcoming' | 'past',
 ): Record<string, string> {
@@ -63,6 +64,7 @@ function buildEventListParams(
   if (filters?.organisationCompanyId) {
     params.organisationCompanies = filters.organisationCompanyId;
   }
+  if (filters?.q?.trim()) params.q = filters.q.trim();
 
   return params;
 }
@@ -95,6 +97,7 @@ export async function fetchPastEvents(
     page?: number;
     perPage?: number;
     forAdmin?: boolean;
+    q?: string;
   },
   options?: { refresh?: boolean; clientFilters?: EventFilterParams },
 ): Promise<{ items: EventItem[]; page: number; hasMore: boolean }> {
@@ -125,6 +128,7 @@ export async function fetchUpcomingEvents(
     page?: number;
     perPage?: number;
     forAdmin?: boolean;
+    q?: string;
   },
   options?: { refresh?: boolean; clientFilters?: EventFilterParams },
 ): Promise<{ items: EventItem[]; page: number; hasMore: boolean }> {
@@ -169,6 +173,7 @@ export async function fetchAdminEventsList(
     page?: number;
     perPage?: number;
     forAdmin?: boolean;
+    q?: string;
   },
   options?: {
     includePast?: boolean;
@@ -250,6 +255,35 @@ export async function fetchEventById(id: string): Promise<EventItem> {
   const event = mapEventRecord(raw);
   const [enriched] = await enrichEventsWithVenues([event]);
   return enriched ?? event;
+}
+
+/** Web getGroupEventByIdDB — home section / hero groupid slotları */
+export async function fetchGroupEventById(
+  id: string,
+): Promise<EventItem | null> {
+  try {
+    const raw = await api.get<Record<string, unknown>>(
+      `/group-events/${encodeURIComponent(id)}`,
+    );
+    if (!raw || typeof raw !== 'object') return null;
+
+    const normalized: Record<string, unknown> = { ...raw };
+    if (normalized.startdate == null && normalized.startDate != null) {
+      normalized.startdate = normalized.startDate;
+    }
+    if (normalized.enddate == null && normalized.endDate != null) {
+      normalized.enddate = normalized.endDate;
+    }
+    if (normalized.id == null) {
+      normalized.id = id;
+    }
+
+    const event = mapEventRecord(normalized);
+    const [enriched] = await enrichEventsWithVenues([event]);
+    return enriched ?? event;
+  } catch {
+    return null;
+  }
 }
 
 export function resolveEventImageUrl(
@@ -343,6 +377,7 @@ export function isPastEvent(event: {
   startsAt?: string | null;
   endsAt?: string | null;
 }): boolean {
+  // Liste/geçmiş: end (yoksa start). Satış kapanışı seans bazlı (fetchEventSessions).
   const endIso = event.endsAt ?? event.startsAt;
   if (!endIso) return false;
   const end = new Date(endIso);

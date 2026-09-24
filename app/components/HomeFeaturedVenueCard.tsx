@@ -8,7 +8,7 @@ import {
 import { AppColors } from "../../constants/colors";
 import { HOME_CARD_BORDER_RADIUS, useIsTablet } from "../../lib/responsive";
 import type { VenueItem } from "../../lib/venues";
-import { EventCardImage } from "./EventCardImage";
+import { EventCardImage } from "./_EventCardImage";
 import { HOME_EVENT_CARD_SCALE } from "./HomeEventCard";
 import { AppText as Text } from "@/components/ui/AppText";
 

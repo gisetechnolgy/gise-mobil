@@ -10,7 +10,7 @@ import {
   formatEventTime,
 } from "../../lib/events";
 import { useIsTablet } from "../../lib/responsive";
-import { EventCardImage } from "./EventCardImage";
+import { EventCardImage } from "./_EventCardImage";
 import { HOME_EVENT_CARD_SCALE } from "./HomeEventCard";
 import { AppText as Text } from "@/components/ui/AppText";
 

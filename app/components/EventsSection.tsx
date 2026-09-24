@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
   forwardRef,
@@ -11,16 +12,28 @@ import {
   ScrollView,
   TouchableOpacity,
   useWindowDimensions,
-  View
+  View,
 } from "react-native";
-import { homeSectionTitleStyle, formatHomeSectionTitle, homeSeeAllStyle } from "../../constants/homeTypography";
+import {
+  HOME_SECTION_CARD_GAP,
+  MOBILE_HOME_SECTION_HEADER_GAP,
+  PAGE_GUTTER,
+} from "../../constants/homeSection";
+import {
+  formatHomeSectionTitle,
+  getHomeSectionChrome,
+  homeSectionTitleStyle,
+  homeSeeAllButtonStyle,
+  homeSeeAllStyle,
+} from "../../constants/homeTypography";
 import { EventItem, fetchUpcomingEvents } from "../../lib/events";
 import type {
   SectionLoadingProps,
   SectionReloadHandle,
 } from "../../lib/sectionReload";
 import { useIsTablet } from "../../lib/responsive";
-import { prefetchEventImages } from "./EventCardImage";
+import { useTranslation } from "../context/_LocaleContext";
+import { prefetchEventImages } from "./_EventCardImage";
 import { AppText as Text } from "@/components/ui/AppText";
 import HomeEventCard, {
   getHomeEventCardWidth,
@@ -34,8 +47,10 @@ type Props = SectionLoadingProps & {
 const EventsSection = forwardRef<SectionReloadHandle, Props>(
   function EventsSection({ onSeeAll, onLoadingChange }, ref) {
     const router = useRouter();
+    const { t } = useTranslation();
     const isTablet = useIsTablet();
     const { width: screenWidth } = useWindowDimensions();
+    const chrome = getHomeSectionChrome(screenWidth);
     const cardWidth = getHomeEventCardWidth(screenWidth, isTablet);
     const [events, setEvents] = useState<EventItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -50,6 +65,8 @@ const EventsSection = forwardRef<SectionReloadHandle, Props>(
           });
           setEvents(res.items);
           void prefetchEventImages(res.items);
+        } catch {
+          setEvents([]);
         } finally {
           if (!silent) setLoading(false);
         }
@@ -80,17 +97,33 @@ const EventsSection = forwardRef<SectionReloadHandle, Props>(
     }
 
     return (
-      <View className="mt-4">
-        <View className="flex-row items-center justify-between px-5 mb-2">
-          <Text style={homeSectionTitleStyle(isTablet)}>
-            {formatHomeSectionTitle("Etkinlikler")}
+      <View style={{ paddingTop: 20 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: PAGE_GUTTER,
+            marginBottom: MOBILE_HOME_SECTION_HEADER_GAP,
+            minHeight: chrome.height,
+            gap: 6,
+          }}
+        >
+          <Text style={[homeSectionTitleStyle(isTablet), { flex: 1 }]} numberOfLines={1}>
+            {formatHomeSectionTitle(t("defaultEventsSection"))}
           </Text>
           <TouchableOpacity
             onPress={onSeeAll ?? (() => router.push("/(tabs)/events"))}
+            style={homeSeeAllButtonStyle(screenWidth)}
+            activeOpacity={0.85}
           >
-            <Text style={homeSeeAllStyle(isTablet)}>
-              Tümünü Göster
-            </Text>
+            <Text style={homeSeeAllStyle(screenWidth)}>{t("showAll")}</Text>
+            <Ionicons
+              name="chevron-forward"
+              size={chrome.seeAllChevron}
+              color="#FFFFFF"
+              style={{ marginLeft: 3 }}
+            />
           </TouchableOpacity>
         </View>
 
@@ -98,10 +131,10 @@ const EventsSection = forwardRef<SectionReloadHandle, Props>(
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: 20,
+            paddingHorizontal: PAGE_GUTTER,
             paddingTop: 4,
-            paddingBottom: 10,
-            gap: isTablet ? 18 : 14,
+            paddingBottom: 4,
+            gap: HOME_SECTION_CARD_GAP,
           }}
         >
           {loading

@@ -7,7 +7,7 @@ import React, {
   useState,
 } from 'react';
 import { Alert } from 'react-native';
-import { api, ApiError } from '../../lib/api';
+import { api, ApiError, onUnauthorized } from '../../lib/api';
 import type { AuthUser } from '../../lib/authTypes';
 import { GiseUserRecord } from '../../lib/giseMappers';
 import { hydrateAuthUser } from '../../lib/userHydration';
@@ -87,6 +87,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn('refreshMe failed:', e);
       }
     }
+  }, []);
+
+  // Herhangi bir auth'lu istek 401 aldıysa oturumu düşür; useRequireAuth kullanan
+  // ekranlar kendi redirect param'ıyla login'e yönlendirir.
+  useEffect(() => {
+    return onUnauthorized(() => {
+      setUser(null);
+    });
   }, []);
 
   useEffect(() => {

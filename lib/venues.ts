@@ -59,6 +59,56 @@ export async function fetchVenuesWithFeaturedOrder(): Promise<VenueItem[]> {
   return [...featured, ...rest];
 }
 
+/** Web getVenueEventCountsDB — upcoming etkinlik sayıları */
+export async function fetchVenueEventCounts(): Promise<Record<string, number>> {
+  try {
+    const counts = await api.get<Record<string, number>>(
+      '/events/counts-by-venue',
+    );
+    if (counts && typeof counts === 'object' && !Array.isArray(counts)) {
+      const out: Record<string, number> = {};
+      for (const [id, value] of Object.entries(counts)) {
+        const n = Number(value);
+        if (Number.isFinite(n) && n > 0) out[id] = n;
+      }
+      return out;
+    }
+  } catch {
+    /* ignore */
+  }
+  return {};
+}
+
+export function attachVenueEventCounts(
+  venues: VenueItem[],
+  counts: Record<string, number>,
+): VenueItem[] {
+  return venues.map((venue) => ({
+    ...venue,
+    eventCount: Number(counts[venue.id]) || venue.eventCount || 0,
+  }));
+}
+
+/** Etkinlik sayısı çok → az, eşitse A→Z */
+export function sortVenuesByEventCount(venues: VenueItem[]): VenueItem[] {
+  return [...venues].sort((a, b) => {
+    const countDiff = (b.eventCount || 0) - (a.eventCount || 0);
+    if (countDiff !== 0) return countDiff;
+    return String(a.name || '').localeCompare(String(b.name || ''), 'tr', {
+      sensitivity: 'base',
+    });
+  });
+}
+
+/** Mekanlar listesi: sayılar + sıralama (web mekanlar index) */
+export async function fetchVenuesForListPage(): Promise<VenueItem[]> {
+  const [venues, counts] = await Promise.all([
+    fetchVenues(),
+    fetchVenueEventCounts(),
+  ]);
+  return sortVenuesByEventCount(attachVenueEventCounts(venues, counts));
+}
+
 /** Ana sayfa: panel sırasıyla en fazla 6 öne çıkan mekan. */
 export async function fetchFeaturedVenuesForHome(
   limit = 6,

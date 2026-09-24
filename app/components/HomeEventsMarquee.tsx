@@ -140,6 +140,7 @@ export default function HomeEventsMarquee({
         contentContainerStyle={{
           paddingTop: 4,
           paddingBottom: 10,
+          paddingHorizontal: 16,
           gap,
         }}
       >
@@ -161,6 +162,7 @@ export default function HomeEventsMarquee({
         overflow: "hidden",
         paddingTop: 4,
         paddingBottom: 10,
+        paddingLeft: 16,
       }}
     >
       <GestureDetector gesture={panGesture}>

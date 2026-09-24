@@ -17,7 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { DEFAULT_HERO_BANNER_URL } from "../../constants/hero";
 import { useIsTablet } from "../../lib/responsive";
 import { resolveAssetUrl, useBranding } from "../context/BrandingContext";
-import { useTranslation } from "../context/LocaleContext";
+import { useTranslation } from "../context/_LocaleContext";
 import { AppText as Text } from "@/components/ui/AppText";
 
 const GISE_LOGO = require("../../assets/images/gisekibris-logo.png");
@@ -68,7 +68,7 @@ export default function AuthScreenLayout({
       <ImageBackground
         source={heroSource}
         resizeMode="cover"
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
       {/* Görselin üstüne koyu overlay — okunurluk için */}
       <View style={styles.overlay} pointerEvents="none" />
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0a0a14",
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(8, 8, 18, 0.55)",
   },
   safe: {

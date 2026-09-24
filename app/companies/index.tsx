@@ -2,78 +2,70 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { RemoteCardImage } from "../components/RemoteCardImage";
+import EntityListCard from "../components/detail/EntityListCard";
+import MobileHomeHeader from "../components/MobileHomeHeader";
+import MobileSearchSheet from "../components/MobileSearchSheet";
 import { AppColors } from "../../constants/colors";
-import { useTranslation } from "../context/LocaleContext";
+import { PAGE_GUTTER, SECTION_BG } from "../../constants/homeSection";
+import { ENTITY_LIST_CARD } from "../../constants/mobileDetail";
+import { useDrawer } from "../context/DrawerContext";
+import { useNotificationsPanel } from "../context/NotificationContext";
+import { useTranslation } from "../context/_LocaleContext";
 import { appRefreshControl } from "../../lib/appRefreshControl";
-import { formatCityLabel } from "../../lib/cities";
+import { CITY_OPTIONS } from "../../lib/cities";
+import { buildEventsSearchHref, useTabGroup } from "../../lib/navigation";
 import { useIsTablet } from "../../lib/responsive";
-import { resolveRemoteImageUrl } from "../../lib/remoteImage";
 import { AppText as Text } from "@/components/ui/AppText";
 import {
-  fetchCompaniesSorted,
+  fetchCompaniesForListPage,
   companyImageCacheKey,
   type CompanyItem,
 } from "../../lib/companies";
 
-const COMPANY_CARD_IMAGE_WIDTH = { phone: 88, tablet: 104 };
-const COMPANY_CARD_MIN_HEIGHT = { phone: 88, tablet: 100 };
+type PickerItem = { id: string; label: string };
 
-function CompaniesToolbar({
-  searchQuery,
-  onSearchChange,
-  isTablet,
+function CityFilterField({
+  value,
+  onPress,
 }: {
-  searchQuery: string;
-  onSearchChange: (value: string) => void;
-  isTablet: boolean;
+  value: string;
+  onPress: () => void;
 }) {
-  const { t } = useTranslation();
   return (
-    <View style={[styles.toolbar, isTablet && styles.toolbarTablet]}>
-      <View style={[styles.searchRow, isTablet && styles.searchRowTablet]}>
-        <Ionicons name="search" size={20} color="rgba(52,61,72,0.55)" />
-        <TextInput
-          value={searchQuery}
-          onChangeText={onSearchChange}
-          placeholder={t("companiesSearchPlaceholder")}
-          placeholderTextColor="rgba(52,61,72,0.45)"
-          returnKeyType="search"
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[styles.searchInput, isTablet && styles.searchInputTablet]}
-        />
-        {searchQuery.length > 0 ? (
-          <TouchableOpacity
-            onPress={() => onSearchChange("")}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons
-              name="close-circle"
-              size={20}
-              color="rgba(52,61,72,0.45)"
-            />
-          </TouchableOpacity>
-        ) : null}
-      </View>
-    </View>
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={styles.filterCell}
+    >
+      <Text style={styles.filterCellText} numberOfLines={1}>
+        {value}
+      </Text>
+      <Ionicons name="chevron-down" size={14} color="#1A1A1A" />
+    </TouchableOpacity>
   );
 }
 
 export default function CompaniesScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const tabGroup = useTabGroup();
+  const { openDrawer } = useDrawer();
+  const { openNotifications, unreadCount } = useNotificationsPanel();
   const isTablet = useIsTablet();
   const [companies, setCompanies] = useState<CompanyItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [siteSearchOpen, setSiteSearchOpen] = useState(false);
+  const [siteSearchQuery, setSiteSearchQuery] = useState("");
+  const [headerHeight, setHeaderHeight] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,14 +75,14 @@ export default function CompaniesScreen() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const data = await fetchCompaniesSorted();
+      const data = await fetchCompaniesForListPage();
       setCompanies(data);
     } catch {
       setError(t("companiesLoadError"));
     } finally {
       if (!silent) setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadCompanies();
@@ -106,36 +98,47 @@ export default function CompaniesScreen() {
   }, [loadCompanies]);
 
   const filteredCompanies = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return companies;
-    return companies.filter((company) => {
-      const haystack = [
-        company.name,
-        formatCityLabel(company.city),
-        company.address ?? "",
-        company.email ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(query);
+    let list = companies;
+    if (cityFilter) {
+      list = list.filter((company) => company.city === cityFilter);
+    }
+    return [...list].sort((a, b) => {
+      const countDiff = (b.eventCount || 0) - (a.eventCount || 0);
+      if (countDiff !== 0) return countDiff;
+      return String(a.name || "").localeCompare(String(b.name || ""), "tr", {
+        sensitivity: "base",
+      });
     });
-  }, [companies, searchQuery]);
+  }, [companies, cityFilter]);
+
+  const cityFilterLabel = cityFilter
+    ? CITY_OPTIONS.find((c) => c.value === cityFilter)?.label ?? cityFilter
+    : t("selectCity");
+
+  const pickerItems = useMemo(
+    (): PickerItem[] => [
+      { id: "", label: t("all") },
+      ...CITY_OPTIONS.map((c) => ({ id: c.value, label: c.label })),
+    ],
+    [t],
+  );
 
   const contentStyle = {
-    paddingHorizontal: isTablet ? 26 : 20,
-    paddingTop: isTablet ? 12 : 10,
-    gap: isTablet ? 16 : 12,
     paddingBottom: isTablet ? 150 : 120,
     flexGrow: 1,
   };
 
-  const refreshCtrl = appRefreshControl(refreshing, onRefresh);
-  const hasActiveFilters = !!searchQuery.trim();
+  const listPadStyle = {
+    paddingHorizontal: PAGE_GUTTER,
+    paddingTop: 20,
+    gap: 20,
+  };
 
-  return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar style="dark" />
+  const refreshCtrl = appRefreshControl(refreshing, onRefresh);
+  const hasActiveFilters = !!cityFilter;
+
+  const pageChrome = (
+    <>
       <View style={[styles.header, isTablet && styles.headerTablet]}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -148,15 +151,38 @@ export default function CompaniesScreen() {
           />
         </TouchableOpacity>
         <Text style={[styles.pageTitle, isTablet && styles.pageTitleTablet]}>
-          {t("companies")}
+          {t("organisers")}
         </Text>
         <View style={[styles.backBtn, isTablet && styles.backBtnTablet]} />
       </View>
 
-      <CompaniesToolbar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        isTablet={isTablet}
+      <View style={styles.toolbar}>
+        <CityFilterField
+          value={cityFilterLabel}
+          onPress={() => setPickerOpen(true)}
+        />
+      </View>
+    </>
+  );
+
+  return (
+    <View style={[styles.safe, { backgroundColor: SECTION_BG }]}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar style="dark" />
+      <MobileHomeHeader
+        onMenuPress={openDrawer}
+        onNotificationPress={openNotifications}
+        notificationUnreadCount={unreadCount}
+        searchOpen={siteSearchOpen}
+        searchQuery={siteSearchQuery}
+        onSearchOpenChange={setSiteSearchOpen}
+        onSearchQueryChange={setSiteSearchQuery}
+        onSearchSubmit={(query) => {
+          router.push(
+            buildEventsSearchHref(tabGroup, query) as import("expo-router").Href,
+          );
+        }}
+        onHeaderHeightChange={setHeaderHeight}
       />
 
       {loading ? (
@@ -164,36 +190,47 @@ export default function CompaniesScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={contentStyle}
           refreshControl={refreshCtrl}
+          scrollEnabled={!siteSearchOpen}
         >
-          {Array.from({ length: 5 }).map((_, idx) => (
-            <View key={`company-skeleton-${idx}`} style={styles.companyCard}>
+          {pageChrome}
+          <View style={listPadStyle}>
+            {Array.from({ length: 3 }).map((_, idx) => (
               <View
-                style={[
-                  styles.skeletonImage,
-                  {
-                    width: isTablet
-                      ? COMPANY_CARD_IMAGE_WIDTH.tablet
-                      : COMPANY_CARD_IMAGE_WIDTH.phone,
-                    minHeight: isTablet
-                      ? COMPANY_CARD_MIN_HEIGHT.tablet
-                      : COMPANY_CARD_MIN_HEIGHT.phone,
-                  },
-                ]}
-              />
-              <View
-                style={[styles.companyCardBody, isTablet && styles.companyCardBodyTablet]}
+                key={`company-skeleton-${idx}`}
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: ENTITY_LIST_CARD.radius,
+                  overflow: "hidden",
+                  minHeight: ENTITY_LIST_CARD.minHeight,
+                }}
               >
-                <View className="h-4 w-[72%] rounded bg-[#E8ECF0]" />
+                <View
+                  style={{
+                    width: "100%",
+                    aspectRatio: ENTITY_LIST_CARD.imageAspect,
+                    backgroundColor: "#E8ECF0",
+                  }}
+                />
+                <View style={{ padding: 14, gap: 8 }}>
+                  <View className="h-4 w-[70%] rounded bg-[#E8ECF0]" />
+                  <View className="h-3 w-[40%] rounded bg-[#E8ECF0]" />
+                </View>
               </View>
-            </View>
-          ))}
+            ))}
+          </View>
         </ScrollView>
       ) : error ? (
         <ScrollView
-          contentContainerStyle={[contentStyle, { justifyContent: "center" }]}
+          contentContainerStyle={contentStyle}
           refreshControl={refreshCtrl}
+          scrollEnabled={!siteSearchOpen}
         >
-          <Text style={styles.errorText}>{error}</Text>
+          {pageChrome}
+          <View
+            style={[listPadStyle, { justifyContent: "center", flexGrow: 1 }]}
+          >
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
         </ScrollView>
       ) : (
         <ScrollView
@@ -201,65 +238,79 @@ export default function CompaniesScreen() {
           contentContainerStyle={contentStyle}
           refreshControl={refreshCtrl}
           keyboardShouldPersistTaps="handled"
+          scrollEnabled={!siteSearchOpen}
         >
-          {filteredCompanies.length === 0 ? (
-            <Text style={styles.emptyText}>
-              {hasActiveFilters
-                ? t("noCompaniesFilter")
-                : t("noCompaniesEmpty")}
-            </Text>
-          ) : (
-            filteredCompanies.map((company) => {
-              const imageWidth = isTablet
-                ? COMPANY_CARD_IMAGE_WIDTH.tablet
-                : COMPANY_CARD_IMAGE_WIDTH.phone;
-              const cardMinHeight = isTablet
-                ? COMPANY_CARD_MIN_HEIGHT.tablet
-                : COMPANY_CARD_MIN_HEIGHT.phone;
-              const logoUri = resolveRemoteImageUrl(
-                company.logoUrl,
-                companyImageCacheKey(company),
-              );
-
-              return (
-                <TouchableOpacity
+          {pageChrome}
+          <View style={listPadStyle}>
+            {filteredCompanies.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {hasActiveFilters
+                  ? t("noCompaniesFilter")
+                  : t("noCompaniesEmpty")}
+              </Text>
+            ) : (
+              filteredCompanies.map((company) => (
+                <EntityListCard
                   key={company.id}
-                  style={styles.companyCard}
-                  activeOpacity={0.85}
-                  onPress={() =>
-                    router.push(`/companies/${company.id}` as import("expo-router").Href)
-                  }
-                >
-                  <RemoteCardImage
-                    uri={logoUri}
-                    recyclingKey={company.id}
-                    contentFit="cover"
-                    style={[
-                      styles.companyCardImage,
-                      { width: imageWidth, minHeight: cardMinHeight },
-                    ]}
-                    fallbackSource={require("../../assets/images/img-placeholder.jpg")}
-                  />
-                  <View
-                    style={[
-                      styles.companyCardBody,
-                      isTablet && styles.companyCardBodyTablet,
-                    ]}
-                  >
-                    <Text
-                      style={[styles.title, isTablet && styles.titleTablet]}
-                      numberOfLines={2}
-                    >
-                      {company.name}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          )}
+                  id={company.id}
+                  name={company.name}
+                  hrefBase="companies"
+                  bannerUrl={company.bannerUrl}
+                  logoUrl={company.logoUrl}
+                  city={company.city}
+                  cacheKey={companyImageCacheKey(company)}
+                />
+              ))
+            )}
+          </View>
         </ScrollView>
       )}
-    </SafeAreaView>
+
+      <Modal
+        visible={pickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPickerOpen(false)}
+      >
+        <Pressable
+          style={styles.sortOverlay}
+          onPress={() => setPickerOpen(false)}
+        >
+          <Pressable style={styles.sortSheet} onPress={() => {}}>
+            <ScrollView style={{ maxHeight: 360 }}>
+              {pickerItems.map((item) => (
+                <TouchableOpacity
+                  key={item.id || "all"}
+                  style={[
+                    styles.sortOption,
+                    cityFilter === item.id && styles.sortOptionActive,
+                  ]}
+                  onPress={() => {
+                    setCityFilter(item.id);
+                    setPickerOpen(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.sortOptionText,
+                      cityFilter === item.id && styles.sortOptionTextActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <MobileSearchSheet
+        visible={siteSearchOpen}
+        topOffset={headerHeight}
+        query={siteSearchQuery}
+        scope="all"
+      />
+    </View>
   );
 }
 
@@ -300,71 +351,55 @@ const styles = StyleSheet.create({
     fontSize: 26,
   },
   toolbar: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PAGE_GUTTER,
     paddingBottom: 12,
-    gap: 10,
   },
-  toolbarTablet: {
-    paddingHorizontal: 26,
-    paddingBottom: 14,
-    gap: 12,
-  },
-  searchRow: {
+  filterCell: {
+    height: 34,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#D8DDE3",
+    backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: AppColors.cardBg,
+    gap: 6,
   },
-  searchRowTablet: {
+  filterCellText: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: "PoppinsBold",
+    fontSize: 12,
+    color: "#1A1A1A",
+  },
+  sortOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.4)",
+    justifyContent: "flex-end",
+  },
+  sortSheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 12,
+    paddingBottom: 28,
+    gap: 4,
+  },
+  sortOption: {
     paddingVertical: 14,
-    borderRadius: 14,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: AppColors.cardText,
-    padding: 0,
-  },
-  searchInputTablet: {
-    fontSize: 17,
-  },
-  companyCard: {
-    backgroundColor: AppColors.cardBg,
-    borderRadius: 12,
-    overflow: "hidden",
-    flexDirection: "row",
-    alignItems: "stretch",
-  },
-  companyCardImage: {
-    alignSelf: "stretch",
-    backgroundColor: "#E8ECF0",
-  },
-  skeletonImage: {
-    alignSelf: "stretch",
-    backgroundColor: "#E8ECF0",
-  },
-  companyCardBody: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    justifyContent: "center",
-  },
-  companyCardBodyTablet: {
-    paddingVertical: 10,
     paddingHorizontal: 12,
+    borderRadius: 10,
   },
-  title: {
-    color: AppColors.heading,
-    fontSize: 16,
+  sortOptionActive: {
+    backgroundColor: "#FAF5F8",
+  },
+  sortOptionText: {
     fontFamily: "PoppinsSemiBold",
-    lineHeight: 20,
+    fontSize: 15,
+    color: "#1A1A1A",
   },
-  titleTablet: {
-    fontSize: 18,
-    lineHeight: 22,
+  sortOptionTextActive: {
+    color: AppColors.accent,
   },
   emptyText: {
     color: AppColors.cardText,

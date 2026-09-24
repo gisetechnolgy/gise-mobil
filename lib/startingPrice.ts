@@ -1,4 +1,5 @@
 import { api } from './api';
+import { applyCommissionMarkup, type CommissionMeta } from './commission';
 import type { GiseListResponse } from './giseMappers';
 
 export type ActivePriceInfo = {
@@ -33,7 +34,13 @@ function collectActivePrices(
     } else if (status === 2) {
       return;
     }
-    const price = Number(row.price);
+    let price = Number(row.price);
+    if (row.isPromotionAvailable && row.promotion && typeof row.promotion === 'object') {
+      const promo = Number((row.promotion as { price?: unknown }).price);
+      if (Number.isFinite(promo) && promo > 0) {
+        price = Number.isFinite(price) && price > 0 ? Math.min(price, promo) : promo;
+      }
+    }
     if (!Number.isFinite(price) || price <= 0) return;
     prices.push(price);
   };
@@ -55,19 +62,39 @@ function collectActivePrices(
 
 export function getActivePriceInfoFromStock(
   stockData: unknown,
+  commission?: CommissionMeta | null,
 ): ActivePriceInfo | null {
   let prices = collectActivePrices(stockData, true);
   if (prices.length === 0) {
     prices = collectActivePrices(stockData, false);
   }
   if (prices.length === 0) return null;
-  const minPrice = Math.min(...prices);
-  const unique = new Set(prices.map((p) => Number(p)));
+  const marked = prices.map((p) => applyCommissionMarkup(p, commission));
+  const minPrice = Math.min(...marked);
+  const unique = new Set(marked.map((p) => Number(p)));
   return { minPrice, hasMultiple: unique.size > 1 };
+}
+
+/** API startingPrice (komisyonlu) varsa onu kullan. */
+export function getActivePriceInfoFromEvent(
+  event: {
+    startingPrice?: number | null;
+    commissionFee?: number | null;
+    isCommissionExtra?: boolean | null;
+  } | null | undefined,
+): ActivePriceInfo | null {
+  if (event?.startingPrice != null && Number(event.startingPrice) > 0) {
+    return {
+      minPrice: Number(event.startingPrice),
+      hasMultiple: false,
+    };
+  }
+  return null;
 }
 
 export async function fetchEventActivePriceInfo(
   eventId: string,
+  commission?: CommissionMeta | null,
 ): Promise<ActivePriceInfo | null> {
   try {
     const qs = new URLSearchParams({
@@ -80,7 +107,7 @@ export async function fetchEventActivePriceInfo(
     >(`/stocks?${qs.toString()}`);
     const rows = (res.data ?? []).filter((row) => row.isActive !== false);
     for (const row of rows) {
-      const info = getActivePriceInfoFromStock(row.stock);
+      const info = getActivePriceInfoFromStock(row.stock, commission);
       if (info) return info;
     }
     return null;
@@ -89,8 +116,39 @@ export async function fetchEventActivePriceInfo(
   }
 }
 
+/** Liste kartları: önce API startingPrice, yoksa stok + komisyon. */
+export async function enrichEventsWithPriceInfo<
+  T extends {
+    id: string;
+    startingPrice?: number | null;
+    commissionFee?: number | null;
+    isCommissionExtra?: boolean | null;
+  },
+>(events: T[]): Promise<Array<T & { priceInfo: ActivePriceInfo | null }>> {
+  return Promise.all(
+    events.map(async (event) => {
+      const fromApi = getActivePriceInfoFromEvent(event);
+      if (fromApi) {
+        return { ...event, priceInfo: fromApi };
+      }
+      return {
+        ...event,
+        priceInfo: await fetchEventActivePriceInfo(event.id, {
+          commissionFee: event.commissionFee,
+          isCommissionExtra: event.isCommissionExtra,
+        }),
+      };
+    }),
+  );
+}
+
 export function formatPriceTl(price: number): string {
   return `${Math.round(price).toLocaleString('tr-TR')} TL`;
+}
+
+/** Web ana sayfa kartları — ₺1.250 */
+export function formatHomePriceAmount(price: number): string {
+  return `₺${Math.round(price).toLocaleString('tr-TR')}`;
 }
 
 /** Satın alma / ödeme ekranları için 2 haneli fiyat (ör. 8,000.00 TL). */

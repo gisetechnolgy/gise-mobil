@@ -52,4 +52,11 @@ export async function markAllNotificationsRead() {
   );
 }
 
+export async function deleteNotification(id: string) {
+  return api.delete<{ ok: true }>(
+    `/notifications/inbox/${encodeURIComponent(id)}`,
+    { auth: true },
+  );
+}
+
 export { registerPushTokenWithBackend, syncPushTokenWithBackend } from './push-notifications';

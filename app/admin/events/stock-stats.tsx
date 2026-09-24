@@ -13,7 +13,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { useTranslation } from '../../context/LocaleContext';
+import { useTranslation } from '../../context/_LocaleContext';
 import { AppColors } from '../../../constants/colors';
 import { appRefreshControl } from '../../../lib/appRefreshControl';
 import {

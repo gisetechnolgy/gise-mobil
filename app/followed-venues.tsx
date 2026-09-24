@@ -8,7 +8,7 @@ import {
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { RemoteCardImage } from "./components/RemoteCardImage";
+import { RemoteCardImage } from "./components/_RemoteCardImage";
 import { AppColors } from "../constants/colors";
 import { appRefreshControl } from "../lib/appRefreshControl";
 import { readFollowedVenueIds } from "../lib/followedVenues";
@@ -149,7 +149,7 @@ export default function FollowedVenuesScreen() {
       paddingHorizontal: isTablet ? 26 : 20,
       paddingTop: isTablet ? 12 : 10,
       gap: isTablet ? 16 : 12,
-      paddingBottom: isTablet ? 40 : 28,
+      paddingBottom: isTablet ? 150 : 120,
       flexGrow: 1,
     }),
     [isTablet],

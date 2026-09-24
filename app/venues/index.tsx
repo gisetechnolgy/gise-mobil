@@ -6,29 +6,30 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { RemoteCardImage } from "../components/RemoteCardImage";
+import EntityListCard from "../components/detail/EntityListCard";
+import MobileHomeHeader from "../components/MobileHomeHeader";
+import MobileSearchSheet from "../components/MobileSearchSheet";
 import { AppColors } from "../../constants/colors";
-import { useTranslation } from "../context/LocaleContext";
+import { SECTION_BG, PAGE_GUTTER } from "../../constants/homeSection";
+import { ENTITY_LIST_CARD } from "../../constants/mobileDetail";
+import { useDrawer } from "../context/DrawerContext";
+import { useNotificationsPanel } from "../context/NotificationContext";
+import { useTranslation } from "../context/_LocaleContext";
 import { appRefreshControl } from "../../lib/appRefreshControl";
-import { CITY_OPTIONS, formatCityLabel } from "../../lib/cities";
+import { CITY_OPTIONS } from "../../lib/cities";
 import {
   fetchVenueCategories,
   type CategoryItem,
 } from "../../lib/definitions";
+import { buildEventsSearchHref, useTabGroup } from "../../lib/navigation";
 import { useIsTablet } from "../../lib/responsive";
-import { resolveRemoteImageUrl } from "../../lib/remoteImage";
 import { AppText as Text } from "@/components/ui/AppText";
 import {
-  fetchVenuesWithFeaturedOrder,
+  fetchVenuesForListPage,
   venueImageCacheKey,
   type VenueItem,
 } from "../../lib/venues";
@@ -79,190 +80,42 @@ function VenueInfoRow({
 }
 
 function VenueFilterField({
-  label,
   value,
   onPress,
-  isTablet,
 }: {
-  label: string;
   value: string;
   onPress: () => void;
-  isTablet: boolean;
 }) {
   return (
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={onPress}
-      style={[styles.filterField, isTablet && styles.filterFieldTablet]}
+      style={styles.filterCell}
     >
-      <Text style={[styles.filterFieldLabel, isTablet && styles.filterFieldLabelTablet]}>
-        {label}
-      </Text>
-      <Text
-        style={[styles.filterFieldValue, isTablet && styles.filterFieldValueTablet]}
-        numberOfLines={1}
-      >
+      <Text style={styles.filterCellText} numberOfLines={1}>
         {value}
       </Text>
+      <Ionicons name="chevron-down" size={14} color="#1A1A1A" />
     </TouchableOpacity>
   );
 }
 
-function VenueFilterBottomSheet({
-  visible,
-  title,
-  items,
-  draftId,
-  onChangeDraft,
-  onConfirm,
-  onClose,
-  isTablet,
-  bottomInset,
-}: {
-  visible: boolean;
-  title: string;
-  items: PickerItem[];
-  draftId: string;
-  onChangeDraft: (id: string) => void;
-  onConfirm: () => void;
-  onClose: () => void;
-  isTablet: boolean;
-  bottomInset: number;
-}) {
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View style={styles.sheetOverlay}>
-        <Pressable style={styles.sheetDismissArea} onPress={onClose} />
-        <View style={[styles.sheet, isTablet && styles.sheetTablet]}>
-          <View style={styles.sheetHandle} />
-          <Text style={[styles.sheetTitle, isTablet && styles.sheetTitleTablet]}>
-            {title}
-          </Text>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.sheetList,
-              isTablet && styles.sheetListTablet,
-            ]}
-            style={styles.sheetScroll}
-          >
-            {items.map((item) => {
-              const active = draftId === item.id;
-              return (
-                <TouchableOpacity
-                  key={item.id || "all"}
-                  activeOpacity={0.85}
-                  onPress={() => onChangeDraft(item.id)}
-                  style={[
-                    styles.sheetItem,
-                    isTablet && styles.sheetItemTablet,
-                    active && styles.sheetItemActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.sheetItemText,
-                      isTablet && styles.sheetItemTextTablet,
-                      active && styles.sheetItemTextActive,
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-          <View
-            style={[
-              styles.sheetFooter,
-              isTablet && styles.sheetFooterTablet,
-              { paddingBottom: Math.max(bottomInset, 16) },
-            ]}
-          >
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={onConfirm}
-              style={[styles.sheetConfirmButton, isTablet && styles.sheetConfirmButtonTablet]}
-            >
-              <Text
-                style={[
-                  styles.sheetConfirmText,
-                  isTablet && styles.sheetConfirmTextTablet,
-                ]}
-              >
-                Tamam
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 function VenuesToolbar({
-  searchQuery,
-  onSearchChange,
   cityLabel,
   categoryLabel,
   onCityPress,
   onCategoryPress,
-  isTablet,
 }: {
-  searchQuery: string;
-  onSearchChange: (value: string) => void;
   cityLabel: string;
   categoryLabel: string;
   onCityPress: () => void;
   onCategoryPress: () => void;
-  isTablet: boolean;
 }) {
-  const { t } = useTranslation();
   return (
-    <View style={[styles.toolbar, isTablet && styles.toolbarTablet]}>
-      <View style={[styles.searchRow, isTablet && styles.searchRowTablet]}>
-        <Ionicons name="search" size={20} color="rgba(52,61,72,0.55)" />
-        <TextInput
-          value={searchQuery}
-          onChangeText={onSearchChange}
-          placeholder={t("venuesSearchPlaceholder")}
-          placeholderTextColor="rgba(52,61,72,0.45)"
-          returnKeyType="search"
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[styles.searchInput, isTablet && styles.searchInputTablet]}
-        />
-        {searchQuery.length > 0 ? (
-          <TouchableOpacity
-            onPress={() => onSearchChange("")}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons
-              name="close-circle"
-              size={20}
-              color="rgba(52,61,72,0.45)"
-            />
-          </TouchableOpacity>
-        ) : null}
-      </View>
+    <View style={styles.toolbar}>
       <View style={styles.filterRow}>
-        <VenueFilterField
-          label={t("city")}
-          value={cityLabel}
-          onPress={onCityPress}
-          isTablet={isTablet}
-        />
-        <VenueFilterField
-          label={t("category")}
-          value={categoryLabel}
-          onPress={onCategoryPress}
-          isTablet={isTablet}
-        />
+        <VenueFilterField value={cityLabel} onPress={onCityPress} />
+        <VenueFilterField value={categoryLabel} onPress={onCategoryPress} />
       </View>
     </View>
   );
@@ -272,7 +125,9 @@ export default function VenuesScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const segments = useSegments();
-  const insets = useSafeAreaInsets();
+  const tabGroup = useTabGroup();
+  const { openDrawer } = useDrawer();
+  const { openNotifications, unreadCount } = useNotificationsPanel();
   const isTabScreen =
     segments[0] === "(tabs)" && segments.length === 2 && segments[1] === "venues";
   const isTablet = useIsTablet();
@@ -281,11 +136,12 @@ export default function VenuesScreen() {
   const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>(
     {},
   );
-  const [searchQuery, setSearchQuery] = useState("");
+  const [siteSearchOpen, setSiteSearchOpen] = useState(false);
+  const [siteSearchQuery, setSiteSearchQuery] = useState("");
+  const [headerHeight, setHeaderHeight] = useState(0);
   const [cityFilter, setCityFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [picker, setPicker] = useState<PickerKey | null>(null);
-  const [draftId, setDraftId] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -296,7 +152,7 @@ export default function VenuesScreen() {
     setError(null);
     try {
       const [data, categories] = await Promise.all([
-        fetchVenuesWithFeaturedOrder(),
+        fetchVenuesForListPage(),
         fetchVenueCategories(),
       ]);
       setVenues(data);
@@ -332,27 +188,21 @@ export default function VenuesScreen() {
     if (categoryFilter) {
       list = list.filter((venue) => venue.categories.includes(categoryFilter));
     }
-    const query = searchQuery.trim().toLowerCase();
-    if (query) {
-      list = list.filter((venue) => {
-        const haystack = [
-          venue.name,
-          formatCityLabel(venue.city),
-          venue.address ?? "",
-          getVenueCategoryLabel(venue, categoryLabels),
-        ]
-          .join(" ")
-          .toLowerCase();
-        return haystack.includes(query);
+    return [...list].sort((a, b) => {
+      const countDiff = (b.eventCount || 0) - (a.eventCount || 0);
+      if (countDiff !== 0) return countDiff;
+      return String(a.name || "").localeCompare(String(b.name || ""), "tr", {
+        sensitivity: "base",
       });
-    }
-    return list;
-  }, [venues, cityFilter, categoryFilter, searchQuery, categoryLabels]);
+    });
+  }, [venues, cityFilter, categoryFilter]);
 
-  const cityFilterLabel =
-    CITY_OPTIONS.find((c) => c.value === cityFilter)?.label ?? t("all");
-  const categoryFilterLabel =
-    categoryLabels[categoryFilter] ?? t("all");
+  const cityFilterLabel = cityFilter
+    ? CITY_OPTIONS.find((c) => c.value === cityFilter)?.label ?? cityFilter
+    : t("selectCity");
+  const categoryFilterLabel = categoryFilter
+    ? categoryLabels[categoryFilter] ?? categoryFilter
+    : t("selectCategory");
 
   const pickerItems = useMemo((): PickerItem[] => {
     if (picker === "city") {
@@ -370,46 +220,48 @@ export default function VenuesScreen() {
     return [];
   }, [picker, venueCategories]);
 
-  const pickerTitle = picker === "city" ? t("city") : picker === "category" ? t("category") : "";
-
-  const openPicker = useCallback(
-    (key: PickerKey) => {
-      setDraftId(key === "city" ? cityFilter : categoryFilter);
-      setPicker(key);
-    },
-    [cityFilter, categoryFilter],
-  );
-
-  const confirmPicker = useCallback(() => {
-    if (picker === "city") setCityFilter(draftId);
-    if (picker === "category") setCategoryFilter(draftId);
-    setPicker(null);
-  }, [draftId, picker]);
+  const openPicker = useCallback((key: PickerKey) => {
+    setPicker(key);
+  }, []);
 
   const closePicker = useCallback(() => {
     setPicker(null);
   }, []);
 
+  const applyPicker = useCallback(
+    (id: string) => {
+      if (picker === "city") setCityFilter(id);
+      if (picker === "category") setCategoryFilter(id);
+      setPicker(null);
+    },
+    [picker],
+  );
+
+  const pickerSelected =
+    picker === "city"
+      ? cityFilter
+      : picker === "category"
+        ? categoryFilter
+        : "";
+
   const contentStyle = {
-    paddingHorizontal: isTablet ? 26 : 20,
-    paddingTop: isTablet ? 12 : 10,
-    gap: isTablet ? 16 : 12,
     paddingBottom: isTablet ? 150 : 120,
     flexGrow: 1,
   };
 
-  const refreshCtrl = appRefreshControl(refreshing, onRefresh);
-  const hasActiveFilters =
-    !!searchQuery.trim() || !!cityFilter || !!categoryFilter;
+  const listPadStyle = {
+    paddingHorizontal: PAGE_GUTTER,
+    paddingTop: 20,
+    gap: 20,
+  };
 
-  return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar style="dark" />
+  const refreshCtrl = appRefreshControl(refreshing, onRefresh);
+  const hasActiveFilters = !!cityFilter || !!categoryFilter;
+
+  const pageChrome = (
+    <>
       <View style={[styles.header, isTablet && styles.headerTablet]}>
-        {isTabScreen ? (
-          <View style={[styles.backBtn, isTablet && styles.backBtnTablet]} />
-        ) : (
+        {!isTabScreen ? (
           <TouchableOpacity
             onPress={() => router.back()}
             style={[styles.backBtn, isTablet && styles.backBtnTablet]}
@@ -420,6 +272,8 @@ export default function VenuesScreen() {
               color={AppColors.cardText}
             />
           </TouchableOpacity>
+        ) : (
+          <View style={[styles.backBtn, isTablet && styles.backBtnTablet]} />
         )}
         <Text style={[styles.pageTitle, isTablet && styles.pageTitleTablet]}>
           {t("venues")}
@@ -428,13 +282,34 @@ export default function VenuesScreen() {
       </View>
 
       <VenuesToolbar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
         cityLabel={cityFilterLabel}
         categoryLabel={categoryFilterLabel}
         onCityPress={() => openPicker("city")}
         onCategoryPress={() => openPicker("category")}
-        isTablet={isTablet}
+      />
+    </>
+  );
+
+  return (
+    <View
+      style={[styles.safe, { backgroundColor: SECTION_BG }]}
+    >
+      <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar style="dark" />
+      <MobileHomeHeader
+        onMenuPress={openDrawer}
+        onNotificationPress={openNotifications}
+        notificationUnreadCount={unreadCount}
+        searchOpen={siteSearchOpen}
+        searchQuery={siteSearchQuery}
+        onSearchOpenChange={setSiteSearchOpen}
+        onSearchQueryChange={setSiteSearchQuery}
+        onSearchSubmit={(query) => {
+          router.push(
+            buildEventsSearchHref(tabGroup, query) as import("expo-router").Href,
+          );
+        }}
+        onHeaderHeightChange={setHeaderHeight}
       />
 
       {loading ? (
@@ -442,39 +317,46 @@ export default function VenuesScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={contentStyle}
           refreshControl={refreshCtrl}
+          scrollEnabled={!siteSearchOpen}
         >
-          {Array.from({ length: 5 }).map((_, idx) => (
-            <View key={`venue-skeleton-${idx}`} style={styles.venueCard}>
+          {pageChrome}
+          <View style={listPadStyle}>
+            {Array.from({ length: 3 }).map((_, idx) => (
               <View
-                style={[
-                  styles.skeletonImage,
-                  {
-                    width: isTablet
-                      ? VENUE_CARD_IMAGE_WIDTH.tablet
-                      : VENUE_CARD_IMAGE_WIDTH.phone,
-                    minHeight: isTablet
-                      ? VENUE_CARD_MIN_HEIGHT.tablet
-                      : VENUE_CARD_MIN_HEIGHT.phone,
-                  },
-                ]}
-              />
-              <View
-                style={[styles.venueCardBody, isTablet && styles.venueCardBodyTablet]}
+                key={`venue-skeleton-${idx}`}
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: ENTITY_LIST_CARD.radius,
+                  overflow: "hidden",
+                  minHeight: ENTITY_LIST_CARD.minHeight,
+                }}
               >
-                <View className="h-3 w-[36%] rounded bg-[#E8ECF0]" />
-                <View className="h-4 w-[88%] rounded bg-[#E8ECF0] mt-2" />
-                <View className="h-px w-full rounded bg-[#E8ECF0] mt-2" />
-                <View className="h-3 w-[58%] rounded bg-[#E8ECF0] mt-2" />
+                <View
+                  style={{
+                    width: "100%",
+                    aspectRatio: ENTITY_LIST_CARD.imageAspect,
+                    backgroundColor: "#E8ECF0",
+                  }}
+                />
+                <View style={{ padding: 14, gap: 8 }}>
+                  <View className="h-4 w-[70%] rounded bg-[#E8ECF0]" />
+                  <View className="h-3 w-[40%] rounded bg-[#E8ECF0]" />
+                  <View className="h-3 w-[30%] rounded bg-[#E8ECF0]" />
+                </View>
               </View>
-            </View>
-          ))}
+            ))}
+          </View>
         </ScrollView>
       ) : error ? (
         <ScrollView
-          contentContainerStyle={[contentStyle, { justifyContent: "center" }]}
+          contentContainerStyle={contentStyle}
           refreshControl={refreshCtrl}
+          scrollEnabled={!siteSearchOpen}
         >
-          <Text style={styles.errorText}>{error}</Text>
+          {pageChrome}
+          <View style={[listPadStyle, { justifyContent: "center", flexGrow: 1 }]}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
         </ScrollView>
       ) : (
         <ScrollView
@@ -482,97 +364,77 @@ export default function VenuesScreen() {
           contentContainerStyle={contentStyle}
           refreshControl={refreshCtrl}
           keyboardShouldPersistTaps="handled"
+          scrollEnabled={!siteSearchOpen}
         >
-          {filteredVenues.length === 0 ? (
-            <Text style={styles.emptyText}>
-              {hasActiveFilters
-                ? t("noVenuesFilter")
-                : t("noVenuesEmpty")}
-            </Text>
-          ) : (
-            filteredVenues.map((venue) => {
-              const categoryLabel = getVenueCategoryLabel(venue, categoryLabels);
-              const imageWidth = isTablet
-                ? VENUE_CARD_IMAGE_WIDTH.tablet
-                : VENUE_CARD_IMAGE_WIDTH.phone;
-              const cardMinHeight = isTablet
-                ? VENUE_CARD_MIN_HEIGHT.tablet
-                : VENUE_CARD_MIN_HEIGHT.phone;
-              const logoUri = resolveRemoteImageUrl(
-                venue.logoUrl,
-                venueImageCacheKey(venue),
-              );
-              const cityLabel = formatCityLabel(venue.city);
-
-              return (
-                <TouchableOpacity
-                  key={venue.id}
-                  style={styles.venueCard}
-                  activeOpacity={0.85}
-                  onPress={() =>
-                    router.push(`/venues/${venue.id}` as import("expo-router").Href)
-                  }
-                >
-                  <RemoteCardImage
-                    uri={logoUri}
-                    recyclingKey={venue.id}
-                    contentFit="cover"
-                    style={[
-                      styles.venueCardImage,
-                      { width: imageWidth, minHeight: cardMinHeight },
-                    ]}
-                    fallbackSource={require("../../assets/images/img-placeholder.jpg")}
+          {pageChrome}
+          <View style={listPadStyle}>
+            {filteredVenues.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {hasActiveFilters
+                  ? t("noVenuesFilter")
+                  : t("noVenuesEmpty")}
+              </Text>
+            ) : (
+              filteredVenues.map((venue) => {
+                const categoryLabel = getVenueCategoryLabel(venue, categoryLabels);
+                return (
+                  <EntityListCard
+                    key={venue.id}
+                    id={venue.id}
+                    name={venue.name}
+                    hrefBase="venues"
+                    bannerUrl={venue.bannerUrl}
+                    logoUrl={venue.logoUrl}
+                    city={venue.city}
+                    categoryLabel={categoryLabel}
+                    cacheKey={venueImageCacheKey(venue)}
                   />
-                  <View
-                    style={[
-                      styles.venueCardBody,
-                      isTablet && styles.venueCardBodyTablet,
-                    ]}
-                  >
-                    {categoryLabel ? (
-                      <Text
-                        style={[styles.category, isTablet && styles.categoryTablet]}
-                        numberOfLines={1}
-                      >
-                        {categoryLabel}
-                      </Text>
-                    ) : null}
-                    <Text
-                      style={[styles.title, isTablet && styles.titleTablet]}
-                      numberOfLines={2}
-                    >
-                      {venue.name}
-                    </Text>
-                    <View style={styles.titleDivider} />
-                    <View style={styles.infoList}>
-                      {cityLabel ? (
-                        <VenueInfoRow
-                          icon="location"
-                          label={cityLabel}
-                          isTablet={isTablet}
-                        />
-                      ) : null}
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </View>
         </ScrollView>
       )}
 
-      <VenueFilterBottomSheet
+      <Modal
         visible={picker != null}
-        title={pickerTitle}
-        items={pickerItems}
-        draftId={draftId}
-        onChangeDraft={setDraftId}
-        onConfirm={confirmPicker}
-        onClose={closePicker}
-        isTablet={isTablet}
-        bottomInset={insets.bottom}
+        transparent
+        animationType="fade"
+        onRequestClose={closePicker}
+      >
+        <Pressable style={styles.sortOverlay} onPress={closePicker}>
+          <Pressable style={styles.sortSheet} onPress={() => {}}>
+            <ScrollView style={{ maxHeight: 360 }}>
+              {pickerItems.map((item) => (
+                <TouchableOpacity
+                  key={item.id || "all"}
+                  style={[
+                    styles.sortOption,
+                    pickerSelected === item.id && styles.sortOptionActive,
+                  ]}
+                  onPress={() => applyPicker(item.id)}
+                >
+                  <Text
+                    style={[
+                      styles.sortOptionText,
+                      pickerSelected === item.id && styles.sortOptionTextActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <MobileSearchSheet
+        visible={siteSearchOpen}
+        topOffset={headerHeight}
+        query={siteSearchQuery}
+        scope="all"
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -613,175 +475,61 @@ const styles = StyleSheet.create({
     fontSize: 26,
   },
   toolbar: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PAGE_GUTTER,
     paddingBottom: 12,
-    gap: 10,
-  },
-  toolbarTablet: {
-    paddingHorizontal: 26,
-    paddingBottom: 14,
-    gap: 12,
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: AppColors.cardBg,
-  },
-  searchRowTablet: {
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: AppColors.cardText,
-    padding: 0,
-  },
-  searchInputTablet: {
-    fontSize: 17,
   },
   filterRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 6,
   },
-  filterField: {
+  filterCell: {
     flex: 1,
-    backgroundColor: AppColors.cardBg,
-    borderRadius: 12,
+    minWidth: 0,
+    height: 34,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#D8DDE3",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
-  filterFieldTablet: {
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  filterFieldLabel: {
-    color: "rgba(52, 61, 72, 0.55)",
-    fontSize: 12,
-    fontFamily: "PoppinsMedium",
-  },
-  filterFieldLabelTablet: {
-    fontSize: 13,
-  },
-  filterFieldValue: {
-    color: AppColors.heading,
-    fontSize: 15,
+  filterCellText: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: "PoppinsBold",
+    fontSize: 12,
+    color: "#1A1A1A",
   },
-  filterFieldValueTablet: {
-    fontSize: 17,
-  },
-  sheetOverlay: {
+  sortOverlay: {
     flex: 1,
+    backgroundColor: "rgba(15,23,42,0.4)",
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.4)",
   },
-  sheetDismissArea: {
-    flex: 1,
-  },
-  sheet: {
-    backgroundColor: AppColors.background,
+  sortSheet: {
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    maxHeight: "78%",
-    paddingTop: 8,
+    padding: 12,
+    paddingBottom: 28,
+    gap: 4,
   },
-  sheetTablet: {
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-  },
-  sheetHandle: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "rgba(52, 61, 72, 0.18)",
-    marginBottom: 12,
-  },
-  sheetTitle: {
-    color: AppColors.heading,
-    fontSize: 18,
-    fontFamily: "PoppinsBold",
-    textAlign: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-  },
-  sheetTitleTablet: {
-    fontSize: 20,
-    paddingBottom: 16,
-  },
-  sheetScroll: {
-    flexGrow: 0,
-  },
-  sheetList: {
-    paddingHorizontal: 20,
-    gap: 10,
-    paddingBottom: 8,
-  },
-  sheetListTablet: {
-    paddingHorizontal: 26,
-    gap: 12,
-  },
-  sheetItem: {
-    minHeight: 44,
-    paddingVertical: 11,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: AppColors.cardBg,
-    justifyContent: "center",
-  },
-  sheetItemTablet: {
-    minHeight: 48,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
+  sortOption: {
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderRadius: 10,
   },
-  sheetItemActive: {
-    backgroundColor: AppColors.accent,
+  sortOptionActive: {
+    backgroundColor: "#FAF5F8",
   },
-  sheetItemText: {
-    color: AppColors.heading,
-    fontSize: 16,
+  sortOptionText: {
     fontFamily: "PoppinsSemiBold",
+    fontSize: 15,
+    color: "#1A1A1A",
   },
-  sheetItemTextTablet: {
-    fontSize: 18,
-  },
-  sheetItemTextActive: {
-    color: AppColors.navText,
-  },
-  sheetFooter: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    backgroundColor: AppColors.background,
-  },
-  sheetFooterTablet: {
-    paddingHorizontal: 26,
-  },
-  sheetConfirmButton: {
-    minHeight: 40,
-    borderRadius: 8,
-    backgroundColor: AppColors.secondaryButton,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sheetConfirmButtonTablet: {
-    minHeight: 44,
-    borderRadius: 10,
-  },
-  sheetConfirmText: {
-    color: AppColors.navText,
-    fontSize: 16,
-    fontFamily: "PoppinsBold",
-  },
-  sheetConfirmTextTablet: {
-    fontSize: 18,
+  sortOptionTextActive: {
+    color: AppColors.accent,
   },
   venueCard: {
     backgroundColor: AppColors.cardBg,

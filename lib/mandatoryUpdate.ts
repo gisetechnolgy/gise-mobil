@@ -140,8 +140,9 @@ export async function resolveMandatoryUpdate(): Promise<UpdateRequirement> {
     const localVersion = getInstalledAppVersion();
     return evaluatePlatform(localVersion, platformConfig);
   } catch (e) {
-    // Ağ hatasında uygulamayı kilitleme
-    console.warn('[app/version] check failed:', e);
+    // Ağ hatasında uygulamayı kilitleme — Error objesi LogBox'ta kırmızı görünmesin
+    const msg = e instanceof Error ? e.message : String(e ?? '');
+    console.warn('[app/version] check failed:', msg || 'network');
     return { kind: 'none' };
   }
 }

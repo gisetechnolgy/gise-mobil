@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import AuthScreenLayout from '../components/AuthScreenLayout';
 import { useAuth } from '../context/AuthContext';
-import { useTranslation } from '../context/LocaleContext';
+import { useTranslation } from '../context/_LocaleContext';
 import { AppText as Text } from "@/components/ui/AppText";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

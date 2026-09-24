@@ -1,7 +1,8 @@
-import * as Notifications from 'expo-notifications';
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { getNotificationHrefFromPushData } from '../../lib/notificationNavigation';
+import { getNotifications } from '../../lib/expoNotificationsSafe';
+import { ensurePushNotificationHandler } from '../../lib/pushNotificationHandler';
 import { syncPushTokenWithBackend } from '../../lib/push-notifications';
 
 type Options = {
@@ -18,12 +19,16 @@ export function usePushNotifications({
   onReceivedRef.current = onNotificationReceived;
 
   useEffect(() => {
+    ensurePushNotificationHandler();
     if (!isAuthenticated) return;
 
     void syncPushTokenWithBackend();
 
-    let receivedSub: Notifications.EventSubscription | undefined;
-    let responseSub: Notifications.EventSubscription | undefined;
+    const Notifications = getNotifications();
+    if (!Notifications) return;
+
+    let receivedSub: { remove: () => void } | undefined;
+    let responseSub: { remove: () => void } | undefined;
 
     try {
       receivedSub = Notifications.addNotificationReceivedListener(() => {

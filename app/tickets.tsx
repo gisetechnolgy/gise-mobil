@@ -7,7 +7,6 @@ import {
   Animated,
   Easing,
   FlatList,
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -21,16 +20,23 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppColors } from "../constants/colors";
 import { useAuth } from "./context/AuthContext";
-import { useTranslation } from "./context/LocaleContext";
+import { useTranslation } from "./context/_LocaleContext";
 import { useIsTablet } from "../lib/responsive";
 import { AppText as Text } from "@/components/ui/AppText";
+import { TicketQrCode } from "../components/TicketQrCode";
 import {
   fetchMyTickets,
   formatTicketDate,
   formatTicketDateLong,
   formatTicketTime,
+  canRequestTicketRefund,
+  isTicketRefundDone,
+  isTicketRefundPending,
+  markTicketsRefundDoneForProducts,
+  markTicketsRefundPendingForProducts,
   TicketItem,
 } from "../lib/tickets";
+import CustomerRefundModal from "./components/CustomerRefundModal";
 
 const PAGE_SIZE = 10;
 
@@ -49,6 +55,7 @@ export default function TicketsScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
+  const [refundSaleId, setRefundSaleId] = useState<string | null>(null);
   const sheetSlideAnim = useRef(new Animated.Value(0)).current;
 
   const openTicketSheet = useCallback(
@@ -217,42 +224,61 @@ export default function TicketsScreen() {
             void loadMore();
           }}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.card, isTablet && styles.cardTablet]}
-              activeOpacity={0.85}
-              onPress={() => openTicketSheet(item)}
-            >
-              <View style={styles.cardTop}>
-                <Text
-                  style={[
-                    styles.eventTitle,
-                    isTablet && styles.eventTitleTablet,
-                  ]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {item.eventTitle}
+            <View style={[styles.card, isTablet && styles.cardTablet]}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => openTicketSheet(item)}
+              >
+                <View style={styles.cardTop}>
+                  <Text
+                    style={[
+                      styles.eventTitle,
+                      isTablet && styles.eventTitleTablet,
+                    ]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {item.eventTitle}
+                  </Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={19}
+                    color={AppColors.cardText}
+                    style={styles.chevron}
+                  />
+                </View>
+                <Text style={[styles.subtle, isTablet && styles.subtleTablet]}>
+                  #{item.ticketNo}
                 </Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={19}
-                  color={AppColors.cardText}
-                  style={styles.chevron}
-                />
-              </View>
-              <Text style={[styles.subtle, isTablet && styles.subtleTablet]}>
-                #{item.ticketNo}
-              </Text>
-              <Text style={[styles.subtle, isTablet && styles.subtleTablet]}>
-                {item.holderName}
-              </Text>
-              <Text style={[styles.subtle, isTablet && styles.subtleTablet]}>
-                {item.ticketLabel}
-              </Text>
-              <Text style={[styles.dateText, isTablet && styles.subtleTablet]}>
-                {formatTicketDate(item.eventDate || item.createdAt)}
-              </Text>
-            </TouchableOpacity>
+                <Text style={[styles.subtle, isTablet && styles.subtleTablet]}>
+                  {item.holderName}
+                </Text>
+                <Text style={[styles.subtle, isTablet && styles.subtleTablet]}>
+                  {item.ticketLabel}
+                </Text>
+                <Text style={[styles.dateText, isTablet && styles.subtleTablet]}>
+                  {formatTicketDate(item.eventDate || item.createdAt)}
+                </Text>
+              </TouchableOpacity>
+
+              {isTicketRefundDone(item) ? (
+                <Text style={styles.refundStatusDone}>
+                  {t("refundStatusDone")}
+                </Text>
+              ) : isTicketRefundPending(item) ? (
+                <Text style={styles.refundStatusPending}>
+                  {t("refundStatusWaiting")}
+                </Text>
+              ) : canRequestTicketRefund(item) ? (
+                <TouchableOpacity
+                  style={styles.refundBtn}
+                  activeOpacity={0.85}
+                  onPress={() => setRefundSaleId(item.saleId)}
+                >
+                  <Text style={styles.refundBtnText}>{t("refundRequest")}</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           )}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
@@ -327,8 +353,14 @@ export default function TicketsScreen() {
         onRequestClose={closeTicketSheet}
       >
         <View style={styles.modalRoot}>
-          <Pressable style={styles.modalOverlay} onPress={closeTicketSheet} />
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={closeTicketSheet}
+            accessibilityRole="button"
+          />
           <Animated.View
+            pointerEvents="auto"
+            collapsable={false}
             style={[
               styles.sheet,
               { transform: [{ translateY: sheetSlideAnim }] },
@@ -336,12 +368,9 @@ export default function TicketsScreen() {
           >
             {selectedTicket && (
               <>
-                <Image
-                  source={{
-                    uri: `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
-                      selectedTicket.qrData,
-                    )}`,
-                  }}
+                <TicketQrCode
+                  value={selectedTicket.qrData}
+                  size={160}
                   style={styles.qr}
                 />
                 <Text style={styles.sheetEventTitle}>
@@ -401,11 +430,66 @@ export default function TicketsScreen() {
                     </Text>
                   </View>
                 </View>
+
+                {isTicketRefundDone(selectedTicket) ? (
+                  <Text style={styles.refundStatusDone}>
+                    {t("refundStatusDone")}
+                  </Text>
+                ) : isTicketRefundPending(selectedTicket) ? (
+                  <Text style={styles.refundStatusPending}>
+                    {t("refundStatusWaiting")}
+                  </Text>
+                ) : canRequestTicketRefund(selectedTicket) ? (
+                  <TouchableOpacity
+                    style={styles.refundBtnSheet}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      const saleId = selectedTicket.saleId;
+                      closeTicketSheet();
+                      setRefundSaleId(saleId);
+                    }}
+                  >
+                    <Text style={styles.refundBtnText}>
+                      {t("refundRequest")}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </>
             )}
           </Animated.View>
         </View>
       </Modal>
+
+      <CustomerRefundModal
+        visible={!!refundSaleId}
+        saleId={refundSaleId}
+        onClose={() => {
+          setRefundSaleId(null);
+          void loadInitial({ silent: true });
+        }}
+        onSuccess={(result, refundedItems) => {
+          if (!refundSaleId) return;
+          const saleId = refundSaleId;
+          const productIds = refundedItems.map((i) => i.productId);
+          const countsByProduct: Record<string, number> = {};
+          for (const item of refundedItems) {
+            countsByProduct[item.productId] =
+              (countsByProduct[item.productId] ?? 0) + item.count;
+          }
+          const done = result?.status === "done";
+          const patch = done
+            ? markTicketsRefundDoneForProducts
+            : markTicketsRefundPendingForProducts;
+          setItems((prev) =>
+            patch(prev, saleId, productIds, countsByProduct),
+          );
+          setSelectedTicket((prev) =>
+            prev && prev.saleId === saleId
+              ? patch([prev], saleId, productIds, countsByProduct)[0] ?? prev
+              : prev,
+          );
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -449,12 +533,13 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 14,
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: 120,
     gap: 12,
   },
   listContentTablet: {
     paddingHorizontal: 20,
     paddingTop: 12,
+    paddingBottom: 140,
     gap: 16,
   },
   listContentEmpty: {
@@ -502,6 +587,40 @@ const styles = StyleSheet.create({
     color: "#546573",
     fontSize: 14,
     fontFamily: "PoppinsMedium",
+  },
+  refundBtn: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    backgroundColor: AppColors.navBg,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  refundBtnSheet: {
+    marginTop: 16,
+    alignSelf: "stretch",
+    backgroundColor: AppColors.navBg,
+    borderRadius: 10,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  refundBtnText: {
+    color: "#FFFFFF",
+    fontFamily: "PoppinsSemiBold",
+    fontSize: 13,
+  },
+  refundStatusDone: {
+    marginTop: 10,
+    color: "#16A34A",
+    fontFamily: "PoppinsMedium",
+    fontSize: 13,
+  },
+  refundStatusPending: {
+    marginTop: 10,
+    color: AppColors.accent,
+    fontFamily: "PoppinsMedium",
+    fontSize: 13,
   },
   center: {
     flex: 1,
@@ -599,7 +718,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: "rgba(0,0,0,0.25)",
   },
   sheet: {
@@ -610,7 +729,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 28,
     alignItems: "center",
-    zIndex: 1,
+    zIndex: 2,
+    elevation: 24,
   },
   qr: {
     width: 160,

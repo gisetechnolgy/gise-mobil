@@ -63,7 +63,7 @@ export default function HeroSection({
     >
       <ImageBackground
         source={heroSource}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
         resizeMode="cover"
       />
 

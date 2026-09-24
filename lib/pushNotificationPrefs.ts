@@ -1,6 +1,6 @@
-import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
+import { getNotifications } from './expoNotificationsSafe';
 
 const PREF_KEY = 'prefs.pushNotificationsEnabled';
 const PROMPT_KEY = 'prefs.pushPermissionPromptShown';
@@ -25,6 +25,35 @@ async function setPref(key: string, value: string): Promise<void> {
   await SecureStore.setItemAsync(key, value);
 }
 
+async function hasOsNotificationPermission(): Promise<boolean> {
+  try {
+    if (Platform.OS === 'android') {
+      const api =
+        typeof Platform.Version === 'number'
+          ? Platform.Version
+          : parseInt(String(Platform.Version), 10) || 0;
+      if (api < 33) return true;
+      const permission = PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS;
+      if (!permission) return false;
+      return await PermissionsAndroid.check(permission);
+    }
+
+    const Notifications = getNotifications();
+    if (!Notifications) return false;
+    const current = await Notifications.getPermissionsAsync();
+    const iosStatus = current.ios?.status;
+    return (
+      current.granted === true ||
+      current.status === 'granted' ||
+      iosStatus === Notifications.IosAuthorizationStatus.AUTHORIZED ||
+      iosStatus === Notifications.IosAuthorizationStatus.PROVISIONAL ||
+      iosStatus === Notifications.IosAuthorizationStatus.EPHEMERAL
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** Kullanıcı profilde bildirimleri bilinçli kapattıysa true. */
 export async function isPushNotificationsOptedOut(): Promise<boolean> {
   try {
@@ -38,9 +67,8 @@ export async function isPushNotificationsOptedOut(): Promise<boolean> {
 /** Sistem izni verilmiş ve kullanıcı bildirimleri kapatmamışsa true. */
 export async function readPushNotificationsEnabled(): Promise<boolean> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return false;
-    return !(await isPushNotificationsOptedOut());
+    if (await isPushNotificationsOptedOut()) return false;
+    return await hasOsNotificationPermission();
   } catch {
     return false;
   }

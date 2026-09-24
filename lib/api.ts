@@ -40,11 +40,37 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   auth?: boolean;
-  retryOnUnauthorized?: boolean;
   timeoutMs?: number;
 }
 
 const DEFAULT_TIMEOUT_MS = 25_000;
+/** 3D init / finalize gibi bankaya dokunan istekler için daha uzun süre. */
+export const PAYMENT_TIMEOUT_MS = 40_000;
+
+type UnauthorizedListener = (info: { path: string }) => void;
+const unauthorizedListeners = new Set<UnauthorizedListener>();
+
+/**
+ * Oturum düştüğünde (auth'lu istek 401 aldı) haber almak için.
+ * AuthContext bunu dinleyip kullanıcıyı çıkışa/login'e taşır; böylece
+ * checkout ortasında token süresi dolduğunda kullanıcı sebebi görür.
+ */
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener);
+  return () => {
+    unauthorizedListeners.delete(listener);
+  };
+}
+
+function emitUnauthorized(path: string) {
+  for (const l of unauthorizedListeners) {
+    try {
+      l({ path });
+    } catch {
+      /* listener hatası isteği etkilemesin */
+    }
+  }
+}
 
 async function buildHeaders(auth: boolean): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
@@ -65,7 +91,6 @@ export async function apiRequest<T = unknown>(
     method = 'GET',
     body,
     auth = false,
-    retryOnUnauthorized = false,
     timeoutMs = DEFAULT_TIMEOUT_MS,
   } = options;
 
@@ -92,21 +117,38 @@ export async function apiRequest<T = unknown>(
 
   const fetchWithTimeout = async (): Promise<Response> => {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
     try {
       return await doFetch(controller.signal);
     } catch (e) {
-      if (controller.signal.aborted) {
+      const msg = e instanceof Error ? e.message : String(e ?? '');
+      const name = e instanceof Error ? e.name : '';
+      const isAbort =
+        timedOut ||
+        controller.signal.aborted ||
+        name === 'AbortError' ||
+        msg.includes('aborted') ||
+        msg.includes('AbortError');
+      if (isAbort) {
         throw new ApiError(
           0,
           'Sunucu yanıt vermedi. Bağlantınızı kontrol edip tekrar deneyin.',
         );
       }
-      const msg = e instanceof Error ? e.message : '';
-      if (
+      const isNetwork =
         msg.includes('Network request failed') ||
-        msg.includes('Failed to fetch')
-      ) {
+        msg.includes('Failed to fetch') ||
+        msg.includes('fetch failed') ||
+        msg.includes('UnknownHostException') ||
+        msg.includes('Unable to resolve host') ||
+        msg.includes('ENOTFOUND') ||
+        msg.includes('ECONNREFUSED') ||
+        msg.includes('EAI_AGAIN');
+      if (isNetwork) {
         throw new ApiError(
           0,
           'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.',
@@ -118,10 +160,12 @@ export async function apiRequest<T = unknown>(
     }
   };
 
-  let res = await fetchWithTimeout();
+  const res = await fetchWithTimeout();
 
-  if (res.status === 401 && auth && retryOnUnauthorized) {
+  // Auth'lu istek 401 → token geçersiz/süresi dolmuş: tokenı sil, oturumu düşür.
+  if (res.status === 401 && auth) {
     await secureStorage.clearTokens();
+    emitUnauthorized(path);
   }
 
   const text = await res.text();
@@ -169,4 +213,6 @@ export const api = {
     body?: unknown,
     opts?: Omit<RequestOptions, 'method' | 'body'>,
   ) => apiRequest<T>(path, { ...opts, method: 'PATCH', body }),
+  delete: <T>(path: string, opts?: Omit<RequestOptions, 'method' | 'body'>) =>
+    apiRequest<T>(path, { ...opts, method: 'DELETE' }),
 };

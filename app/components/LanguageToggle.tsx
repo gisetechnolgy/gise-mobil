@@ -1,5 +1,5 @@
 import { StyleSheet, TouchableOpacity, type StyleProp, type ViewStyle } from 'react-native';
-import { useLocale } from '../context/LocaleContext';
+import { useLocale } from '../context/_LocaleContext';
 import { AppText as Text } from '@/components/ui/AppText';
 
 type Props = {

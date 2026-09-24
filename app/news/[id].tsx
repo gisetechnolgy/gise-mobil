@@ -11,9 +11,9 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import HtmlContent from "../components/HtmlContent";
-import { RemoteCardImage } from "../components/RemoteCardImage";
+import { RemoteCardImage } from "../components/_RemoteCardImage";
 import { AppColors } from "../../constants/colors";
-import { useTranslation } from "../context/LocaleContext";
+import { useTranslation } from "../context/_LocaleContext";
 import { appRefreshControl } from "../../lib/appRefreshControl";
 import {
   fetchNewsById,

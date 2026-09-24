@@ -14,9 +14,9 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import { EventCardImage } from '../../components/EventCardImage';
+import { EventCardImage } from '../../components/_EventCardImage';
 import { useAuth } from '../../context/AuthContext';
-import { useTranslation } from '../../context/LocaleContext';
+import { useTranslation } from '../../context/_LocaleContext';
 import { AppColors } from '../../../constants/colors';
 import { appRefreshControl } from '../../../lib/appRefreshControl';
 import { formatCityLabel } from '../../../lib/cities';
@@ -34,7 +34,6 @@ import {
 import {
   eventImageCacheKey,
   formatEventDate,
-  isPastEvent,
   type EventItem,
 } from '../../../lib/events';
 import { useIsTablet } from '../../../lib/responsive';
@@ -136,9 +135,6 @@ function StatCard({
 }) {
   return (
     <View style={[styles.statCard, isTablet && styles.statCardTablet]}>
-      <Text style={[styles.statLabel, isTablet && styles.statLabelTablet]}>
-        {label}
-      </Text>
       {loading ? (
         <SkeletonBlock width="60%" height={22} borderRadius={8} />
       ) : (
@@ -146,6 +142,9 @@ function StatCard({
           {value}
         </Text>
       )}
+      <Text style={[styles.statLabel, isTablet && styles.statLabelTablet]}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -174,11 +173,6 @@ function MenuRow({
       <Text style={[styles.menuRowText, isTablet && styles.menuRowTextTablet]}>
         {label}
       </Text>
-      <Ionicons
-        name="chevron-forward"
-        size={20}
-        color="rgba(52,61,72,0.55)"
-      />
     </TouchableOpacity>
   );
 }
@@ -432,7 +426,6 @@ export default function AdminEventDetailScreen() {
   const scrollBottom = insets.bottom + 120;
   const heroHeight = isTablet ? 330 : 245;
   const showNotFound = !eventLoading && !event;
-  const showStockEdit = !!event && !isPastEvent(event);
   const categoryLabel = event
     ? getEventCategoryLabel(event, categoryLabels)
     : '';
@@ -490,7 +483,7 @@ export default function AdminEventDetailScreen() {
         <View style={[styles.body, isTablet && styles.bodyTablet]}>
           {showNotFound ? (
             <View style={styles.notFoundWrap}>
-              <Text style={styles.errorText}>Etkinlik bulunamadı.</Text>
+              <Text style={styles.errorText}>{t('adminEventNotFound')}</Text>
             </View>
           ) : (
             <>
@@ -550,21 +543,19 @@ export default function AdminEventDetailScreen() {
               disabled={!id}
               onPress={() => id && router.push(`/events/${id}`)}
             />
-            {showStockEdit ? (
-              <MenuRow
-                icon="create-outline"
-                label={t('stockViewEdit')}
-                isTablet={isTablet}
-                disabled={!id}
-                onPress={() =>
-                  id &&
-                  router.push({
-                    pathname: '/admin/events/stock-edit',
-                    params: { eventId: id },
-                  })
-                }
-              />
-            ) : null}
+            <MenuRow
+              icon="create-outline"
+              label={t('stockViewEdit')}
+              isTablet={isTablet}
+              disabled={!id}
+              onPress={() =>
+                id &&
+                router.push({
+                  pathname: '/admin/events/stock-edit',
+                  params: { eventId: id },
+                })
+              }
+            />
             <MenuRow
               icon="bar-chart-outline"
               label={t('stockStats')}
@@ -579,7 +570,7 @@ export default function AdminEventDetailScreen() {
               }
             />
             <MenuRow
-              icon="ticket-outline"
+              icon="receipt-outline"
               label={t('viewSales')}
               isTablet={isTablet}
               disabled={!id}
@@ -587,6 +578,19 @@ export default function AdminEventDetailScreen() {
                 id &&
                 router.push({
                   pathname: '/admin/events/sales',
+                  params: { eventId: id },
+                })
+              }
+            />
+            <MenuRow
+              icon="ticket-outline"
+              label={t('viewTickets')}
+              isTablet={isTablet}
+              disabled={!id}
+              onPress={() =>
+                id &&
+                router.push({
+                  pathname: '/admin/events/tickets',
                   params: { eventId: id },
                 })
               }
@@ -618,7 +622,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#D8DCE2',
   },
   heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   backBtn: {
@@ -780,23 +784,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   statLabel: {
-    color: 'rgba(52,61,72,0.7)',
+    color: 'rgba(52,61,72,0.65)',
     fontSize: 11,
     fontFamily: 'PoppinsMedium',
     textAlign: 'center',
-    marginBottom: 6,
+    marginTop: 6,
   },
   statLabelTablet: {
     fontSize: 12,
   },
   statValue: {
     color: AppColors.cardText,
-    fontSize: 22,
-    fontFamily: 'PoppinsRegular',
+    fontSize: 20,
+    fontFamily: 'PoppinsBold',
     textAlign: 'center',
   },
   statValueTablet: {
-    fontSize: 26,
+    fontSize: 24,
   },
   menuList: {
     gap: 10,

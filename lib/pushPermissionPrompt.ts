@@ -1,7 +1,8 @@
-import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
+import { getNotifications } from './expoNotificationsSafe';
 import {
   enablePushNotifications,
+  promptNotificationPermissionOnOpen,
   syncPushTokenWithBackend,
 } from './push-notifications';
 import {
@@ -26,20 +27,36 @@ export async function maybePromptForPushNotifications(): Promise<void> {
       return;
     }
 
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status === 'granted') {
-      await writePushPermissionPromptShown();
-      await syncPushTokenWithBackend();
-      return;
-    }
-    if (status === 'denied') {
-      await writePushPermissionPromptShown();
-      return;
+    const Notifications = getNotifications();
+    if (Notifications) {
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status === 'granted') {
+        await writePushPermissionPromptShown();
+        await syncPushTokenWithBackend();
+        return;
+      }
+      if (status === 'denied') {
+        await writePushPermissionPromptShown();
+        return;
+      }
+    } else if (Platform.OS === 'android') {
+      // Expo Go Android: expo-notifications yok — yine de OS iznini sor
+      const permission = PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS;
+      if (permission) {
+        const already = await PermissionsAndroid.check(permission);
+        if (already) {
+          await writePushPermissionPromptShown();
+          return;
+        }
+      }
     }
 
     promptInFlight = true;
     await writePushPermissionPromptShown();
-    await enablePushNotifications();
+    const { granted } = await promptNotificationPermissionOnOpen();
+    if (granted) {
+      await enablePushNotifications();
+    }
   } finally {
     promptInFlight = false;
   }

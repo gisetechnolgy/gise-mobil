@@ -1,6 +1,7 @@
 import { api } from './api';
-import { mapEventRecord } from './giseMappers';
+import { mapEventRecord, mapTicketRecord } from './giseMappers';
 import type { EventItem } from './events';
+import type { TicketItem } from './tickets';
 import { enrichEventsWithVenues } from './venues';
 
 export type EventAdminRecord = EventItem & {
@@ -75,6 +76,33 @@ export async function fetchUsedTicketsCount(eventId: string): Promise<number> {
   }
 
   return used;
+}
+
+export async function fetchEventTicketsPage(input: {
+  eventId: string;
+  page?: number;
+  perPage?: number;
+}): Promise<{ items: TicketItem[]; page: number; hasMore: boolean }> {
+  const page = input.page ?? 1;
+  const perPage = input.perPage ?? 20;
+  const qs = new URLSearchParams({
+    'event.id': input.eventId,
+    page: String(page),
+    perPage: String(perPage),
+    sort: 'created',
+    order: 'desc',
+  });
+
+  const res = await api.get<{
+    data?: Record<string, unknown>[];
+    total?: number;
+  }>(`/tickets?${qs.toString()}`, { auth: true });
+
+  const items = (res.data ?? []).map((row) => mapTicketRecord(row));
+  const total = res.total ?? items.length;
+  const hasMore = page * perPage < total;
+
+  return { items, page, hasMore };
 }
 
 export async function updateEventAdminFlags(

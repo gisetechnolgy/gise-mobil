@@ -2,10 +2,10 @@ import { useFocusEffect, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
-import CategoryChips from "../components/CategoryChips";
-import FeaturedVenuesSection from "../components/FeaturedVenuesSection";
-import HeroSection from "../components/HeroSection";
+import FeaturedEventsHero from "../components/FeaturedEventsHero";
 import HomeSections from "../components/HomeSections";
+import MobileHomeHeader from "../components/MobileHomeHeader";
+import MobileSearchSheet from "../components/MobileSearchSheet";
 import { useAuth } from "../context/AuthContext";
 import { useBranding } from "../context/BrandingContext";
 import { useDrawer } from "../context/DrawerContext";
@@ -13,9 +13,12 @@ import { useNotificationsPanel } from "../context/NotificationContext";
 import { appRefreshControl } from "../../lib/appRefreshControl";
 import { syncPushTokenWithBackend } from "../../lib/push-notifications";
 import type { SectionReloadHandle } from "../../lib/sectionReload";
+import { buildEventsSearchHref, useTabGroup } from "../../lib/navigation";
+import { AppColors } from "../../constants/colors";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const tabGroup = useTabGroup();
   const { isOpen, openDrawer } = useDrawer();
   const {
     isOpen: notifOpen,
@@ -27,34 +30,32 @@ export default function HomeScreen() {
   const { user, refreshUser, isAuthenticated } = useAuth();
   const { refresh: refreshBranding, loading: brandingLoading } = useBranding();
   const [refreshing, setRefreshing] = useState(false);
-  const [categoryLoading, setCategoryLoading] = useState(true);
-  const [featuredVenuesLoading, setFeaturedVenuesLoading] = useState(true);
+  const [heroLoading, setHeroLoading] = useState(true);
   const [sectionsLoading, setSectionsLoading] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [headerHeight, setHeaderHeight] = useState(0);
   const splashHiddenRef = useRef(false);
-  const categoryChipsRef = useRef<SectionReloadHandle>(null);
-  const featuredVenuesRef = useRef<SectionReloadHandle>(null);
+  const heroRef = useRef<SectionReloadHandle>(null);
   const homeSectionsRef = useRef<SectionReloadHandle>(null);
+
+  const onSearchSubmit = useCallback(
+    (query: string) => {
+      router.push(buildEventsSearchHref(tabGroup, query) as import("expo-router").Href);
+    },
+    [router, tabGroup],
+  );
 
   useEffect(() => {
     if (splashHiddenRef.current) return;
-    if (
-      brandingLoading ||
-      categoryLoading ||
-      featuredVenuesLoading ||
-      sectionsLoading
-    ) {
+    if (brandingLoading || heroLoading || sectionsLoading) {
       return;
     }
     splashHiddenRef.current = true;
     void SplashScreen.hideAsync().catch(() => {
       /* Splash zaten gizli olabilir */
     });
-  }, [
-    brandingLoading,
-    categoryLoading,
-    featuredVenuesLoading,
-    sectionsLoading,
-  ]);
+  }, [brandingLoading, heroLoading, sectionsLoading]);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,8 +84,7 @@ export default function HomeScreen() {
         isAuthenticated ? refreshNotifications() : Promise.resolve(),
         isAuthenticated ? refreshUser() : Promise.resolve(),
         isAuthenticated ? syncPushTokenWithBackend() : Promise.resolve(),
-        categoryChipsRef.current?.reload({ refresh: true }),
-        featuredVenuesRef.current?.reload({ refresh: true }),
+        heroRef.current?.reload({ refresh: true }),
         homeSectionsRef.current?.reload({ refresh: true }),
       ]);
     } finally {
@@ -99,35 +99,39 @@ export default function HomeScreen() {
   ]);
 
   return (
-    <View className="flex-1 bg-app-bg">
+    <View style={{ flex: 1, backgroundColor: AppColors.sectionBg }}>
+      <MobileHomeHeader
+        onMenuPress={openDrawer}
+        onNotificationPress={openNotifications}
+        notificationUnreadCount={unreadCount}
+        searchOpen={searchOpen}
+        searchQuery={searchQuery}
+        onSearchOpenChange={setSearchOpen}
+        onSearchQueryChange={setSearchQuery}
+        onSearchSubmit={onSearchSubmit}
+        onHeaderHeightChange={setHeaderHeight}
+      />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 110 }}
-        scrollEnabled={!isOpen && !notifOpen}
+        scrollEnabled={!isOpen && !notifOpen && !searchOpen}
         refreshControl={appRefreshControl(refreshing, onRefresh)}
       >
-        <HeroSection
-          onMenuPress={openDrawer}
-          onNotificationPress={openNotifications}
-          notificationUnreadCount={unreadCount}
-          onProfilePress={() => router.push("/(tabs)/profile")}
+        <FeaturedEventsHero
+          ref={heroRef}
+          onLoadingChange={setHeroLoading}
         />
-
-        <View className="bg-app-bg rounded-tl-[28px] rounded-tr-[28px] pt-2 -mt-7">
-          <CategoryChips
-            ref={categoryChipsRef}
-            onLoadingChange={setCategoryLoading}
-          />
-          <FeaturedVenuesSection
-            ref={featuredVenuesRef}
-            onLoadingChange={setFeaturedVenuesLoading}
-          />
-          <HomeSections
-            ref={homeSectionsRef}
-            onLoadingChange={setSectionsLoading}
-          />
-        </View>
+        <HomeSections
+          ref={homeSectionsRef}
+          onLoadingChange={setSectionsLoading}
+        />
       </ScrollView>
+      <MobileSearchSheet
+        visible={searchOpen}
+        topOffset={headerHeight}
+        query={searchQuery}
+        scope="all"
+      />
     </View>
   );
 }

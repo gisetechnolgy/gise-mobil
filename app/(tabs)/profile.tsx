@@ -21,7 +21,7 @@ import {
 import { AppColors } from "../../constants/colors";
 import LanguageToggle from "../components/LanguageToggle";
 import { useAuth } from "../context/AuthContext";
-import { useTranslation } from "../context/LocaleContext";
+import { useTranslation } from "../context/_LocaleContext";
 import { useRequireAuth } from "../../hooks/useRequireAuth";
 import { useIsTablet } from "../../lib/responsive";
 import { readFollowedCompanyIds } from "../../lib/followedCompanies";
@@ -34,12 +34,6 @@ import {
   enablePushNotifications,
   readPushNotificationsEnabled,
 } from "../../lib/push-notifications";
-
-const GIASE_PROFILE_URL = "https://www.gisekibris.com/profil";
-
-function openGiseProfilePage() {
-  void Linking.openURL(GIASE_PROFILE_URL).catch(() => {});
-}
 
 async function openOtherApps() {
   type SsoApp = { id?: string; name?: string; targetUrl: string };
@@ -146,6 +140,17 @@ export default function ProfileScreen() {
       if (next) {
         const ok = await enablePushNotifications();
         setNotificationsEnabled(ok);
+        if (!ok) {
+          Alert.alert(t("notifications"), t("notificationsPermissionDenied"), [
+            { text: t("cancel"), style: "cancel" },
+            {
+              text: t("openSettings"),
+              onPress: () => {
+                void Linking.openSettings();
+              },
+            },
+          ]);
+        }
       } else {
         await disablePushNotifications();
         setNotificationsEnabled(false);
@@ -299,7 +304,9 @@ export default function ProfileScreen() {
           <MenuItem
             label={t("profileDetails")}
             subtitle={t("profileDetailsSubtitle")}
-            onPress={openGiseProfilePage}
+            onPress={() =>
+              router.push("/account/profile-details" as import("expo-router").Href)
+            }
             isTablet={isTablet}
           />
           <MenuItem
@@ -317,13 +324,17 @@ export default function ProfileScreen() {
           <MenuItem
             label={t("paymentDetails")}
             subtitle={t("paymentDetailsSubtitle")}
-            onPress={openGiseProfilePage}
+            onPress={() =>
+              router.push("/account/payment-details" as import("expo-router").Href)
+            }
             isTablet={isTablet}
           />
           <MenuItem
             label={t("changePassword")}
             subtitle={t("changePasswordSubtitle")}
-            onPress={openGiseProfilePage}
+            onPress={() =>
+              router.push("/account/change-password" as import("expo-router").Href)
+            }
             isTablet={isTablet}
           />
           <MenuItem

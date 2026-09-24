@@ -1,21 +1,14 @@
-import {
-  Audio,
-  InterruptionModeAndroid,
-  InterruptionModeIOS,
-} from "expo-av";
+import { setAudioModeAsync } from "expo-audio";
 
 /**
- * Canlı radyo için ses oturumu (expo-av).
- * EAS / kendi native binary’de expo-audio ile stream davranışı farklı olabiliyor; tek stack.
+ * Canlı radyo için ses oturumu (expo-audio — SDK 57+; expo-av kaldırıldı).
  */
 export async function applyRadioAudioSession(): Promise<void> {
-  await Audio.setAudioModeAsync({
-    playsInSilentModeIOS: true,
-    allowsRecordingIOS: false,
-    staysActiveInBackground: true,
-    shouldDuckAndroid: true,
-    playThroughEarpieceAndroid: false,
-    interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-    interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+  await setAudioModeAsync({
+    playsInSilentMode: true,
+    allowsRecording: false,
+    shouldPlayInBackground: true,
+    shouldRouteThroughEarpiece: false,
+    interruptionMode: "doNotMix",
   });
 }

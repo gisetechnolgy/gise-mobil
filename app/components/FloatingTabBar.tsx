@@ -4,28 +4,39 @@ import {
   Animated,
   Platform,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppColors } from "../../constants/colors";
 import { useDrawer } from "../context/DrawerContext";
-import { getScreenHorizontalInset, HOME_CARD_BORDER_RADIUS, useIsTablet } from "../../lib/responsive";
-import { useTranslation } from "../context/LocaleContext";
+import {
+  getScreenHorizontalInset,
+  HOME_CARD_BORDER_RADIUS,
+  useIsTablet,
+} from "../../lib/responsive";
+import { useTranslation } from "../context/_LocaleContext";
 import { AppText as Text } from "@/components/ui/AppText";
 
 type TabConfig = {
   iconFamily?: "ionicons" | "material";
   icon: string;
-  labelKey: "home" | "events" | "venues" | "profile" | "scanTicket" | "admin" | "userMode";
+  labelKey:
+    | "home"
+    | "events"
+    | "support"
+    | "profile"
+    | "scanTicket"
+    | "admin"
+    | "userMode";
 };
 
 const CONSUMER_TAB_CONFIG: Record<string, TabConfig> = {
   index: { iconFamily: "ionicons", icon: "home", labelKey: "home" },
   events: { iconFamily: "ionicons", icon: "calendar", labelKey: "events" },
-  venues: {
-    iconFamily: "material",
-    icon: "map-marker-path",
-    labelKey: "venues",
+  support: {
+    iconFamily: "ionicons",
+    icon: "help-circle",
+    labelKey: "support",
   },
   profile: { iconFamily: "ionicons", icon: "person", labelKey: "profile" },
 };
@@ -35,6 +46,8 @@ const ADMIN_TAB_CONFIG: Record<string, TabConfig> = {
   scan: { iconFamily: "ionicons", icon: "qr-code", labelKey: "scanTicket" },
   profile: { iconFamily: "ionicons", icon: "person", labelKey: "profile" },
 };
+
+const CONSUMER_ROUTE_ORDER = ["index", "events", "support", "profile"];
 
 export type TabBarVariant = "consumer" | "admin";
 
@@ -101,16 +114,16 @@ export default function FloatingTabBar({
   const tabConfig =
     variant === "admin" ? ADMIN_TAB_CONFIG : CONSUMER_TAB_CONFIG;
 
-  const showAccentTab =
+  const showRoleSwitcher =
     (variant === "consumer" && showAdminEntry) ||
     (variant === "admin" && showUserModeExit);
 
-  const accentConfig: TabConfig =
+  const roleConfig: TabConfig =
     variant === "consumer"
       ? { iconFamily: "ionicons", icon: "people", labelKey: "admin" }
       : { iconFamily: "ionicons", icon: "swap-horizontal", labelKey: "userMode" };
 
-  const onAccentPress =
+  const onRolePress =
     variant === "consumer" ? onAdminPress : onUserModePress;
 
   const barShadow = Platform.select({
@@ -147,6 +160,96 @@ export default function FloatingTabBar({
       ? Animated.multiply(drawerOpacity, notifOpacity)
       : drawerOpacity;
 
+  const routeByName = Object.fromEntries(
+    state.routes.map((route) => [route.name, route]),
+  );
+
+  const renderTab = (routeName: string) => {
+    const route = routeByName[routeName];
+    if (!route) return null;
+    const index = state.routes.findIndex((r) => r.key === route.key);
+    const isFocused = state.index === index;
+    const config = tabConfig[route.name] ?? {
+      iconFamily: "ionicons" as const,
+      icon: "ellipse",
+      labelKey: "home" as const,
+    };
+
+    const onPress = () => {
+      const event = navigation.emit({
+        type: "tabPress",
+        target: route.key,
+        canPreventDefault: true,
+      });
+      if (!isFocused && !event.defaultPrevented) {
+        navigation.navigate(route.name);
+      }
+    };
+
+    const iconColor = isFocused
+      ? AppColors.navText
+      : "rgba(255, 255, 255, 0.45)";
+
+    return (
+      <TouchableOpacity
+        key={route.key}
+        onPress={onPress}
+        activeOpacity={0.7}
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 3,
+        }}
+      >
+        <TabIcon config={config} iconSize={iconSize} iconColor={iconColor} />
+        <Text
+          style={{
+            color: iconColor,
+            fontSize: labelSize,
+            fontFamily: "PoppinsSemiBold",
+          }}
+          numberOfLines={1}
+        >
+          {t(config.labelKey)}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderRoleSwitcher = () => (
+    <TouchableOpacity
+      key="role-switcher"
+      onPress={() => onRolePress?.()}
+      activeOpacity={0.85}
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 3,
+        backgroundColor: AppColors.accent,
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={t(roleConfig.labelKey)}
+    >
+      <TabIcon
+        config={roleConfig}
+        iconSize={iconSize}
+        iconColor={AppColors.navText}
+      />
+      <Text
+        style={{
+          color: AppColors.navText,
+          fontSize: labelSize,
+          fontFamily: "PoppinsSemiBold",
+        }}
+        numberOfLines={1}
+      >
+        {t(roleConfig.labelKey)}
+      </Text>
+    </TouchableOpacity>
+  );
+
   return (
     <Animated.View
       pointerEvents="box-none"
@@ -157,6 +260,7 @@ export default function FloatingTabBar({
         right: sideInset,
         height: barHeight,
         opacity,
+        overflow: "visible",
       }}
     >
       <View
@@ -165,102 +269,17 @@ export default function FloatingTabBar({
             flex: 1,
             borderRadius: HOME_CARD_BORDER_RADIUS,
             flexDirection: "row",
+            alignItems: "stretch",
+            backgroundColor: "#0E1F58",
             overflow: "hidden",
           },
           barShadow,
         ]}
       >
-        <View
-          style={{
-            flex: showAccentTab ? state.routes.length : 1,
-            flexDirection: "row",
-            alignItems: "stretch",
-            backgroundColor: "#0E1F58",
-            paddingHorizontal: showAccentTab ? 0 : 5,
-          }}
-        >
-          {state.routes.map((route, index) => {
-            const isFocused = state.index === index;
-            const config = tabConfig[route.name] ?? {
-              iconFamily: "ionicons" as const,
-              icon: "ellipse",
-              label: route.name,
-            };
-
-            const onPress = () => {
-              const event = navigation.emit({
-                type: "tabPress",
-                target: route.key,
-                canPreventDefault: true,
-              });
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
-              }
-            };
-
-            const iconColor = isFocused
-              ? AppColors.navText
-              : "rgba(255, 255, 255, 0.45)";
-
-            return (
-              <TouchableOpacity
-                key={route.key}
-                onPress={onPress}
-                activeOpacity={0.7}
-                style={{
-                  flex: 1,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 3,
-                }}
-              >
-                <TabIcon
-                  config={config}
-                  iconSize={iconSize}
-                  iconColor={iconColor}
-                />
-                <Text
-                  style={{
-                    color: iconColor,
-                    fontSize: labelSize,
-                    fontFamily: "PoppinsSemiBold",
-                  }}
-                >
-                  {t(config.labelKey)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {showAccentTab ? (
-          <TouchableOpacity
-            onPress={() => onAccentPress?.()}
-            activeOpacity={0.85}
-            style={{
-              flex: 1,
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 3,
-              backgroundColor: AppColors.accent,
-            }}
-          >
-            <TabIcon
-              config={accentConfig}
-              iconSize={iconSize}
-              iconColor={AppColors.navText}
-            />
-            <Text
-              style={{
-                color: AppColors.navText,
-                fontSize: labelSize,
-                fontFamily: "PoppinsSemiBold",
-              }}
-            >
-              {t(accentConfig.labelKey)}
-            </Text>
-          </TouchableOpacity>
-        ) : null}
+        {variant === "consumer"
+          ? CONSUMER_ROUTE_ORDER.map((name) => renderTab(name))
+          : state.routes.map((route) => renderTab(route.name))}
+        {showRoleSwitcher ? renderRoleSwitcher() : null}
       </View>
     </Animated.View>
   );

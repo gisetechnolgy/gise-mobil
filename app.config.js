@@ -1,14 +1,12 @@
-/** @type {import('expo/config').ExpoConfig} */
-module.exports = () => {
-  const appJson = require("./app.json");
-
+/** @type {import('expo/config').ConfigContext} */
+module.exports = ({ config }) => {
   const apiUrl =
     process.env.EXPO_PUBLIC_API_URL?.trim() || "https://core.gisekibris.com";
 
   return {
-    ...appJson.expo,
+    ...config,
     extra: {
-      ...appJson.expo.extra,
+      ...config.extra,
       apiUrl,
     },
   };

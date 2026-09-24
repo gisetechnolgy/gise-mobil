@@ -1,12 +1,15 @@
 import '../global.css';
 import 'react-native-gesture-handler';
+// Foreground push banner — tabs yuklenmeden once handler kaydi
+import '../lib/pushNotificationHandler';
 
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Linking,
   StyleSheet,
   Text,
   TextInput,
@@ -16,10 +19,12 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ForceUpdateScreen from './components/ForceUpdateScreen';
+import { AppPanelsProvider } from './context/AppPanelsProvider';
 import { AuthProvider } from './context/AuthContext';
 import { BrandingProvider } from './context/BrandingContext';
-import { LocaleProvider, useLocale } from './context/LocaleContext';
+import { LocaleProvider, useLocale } from './context/_LocaleContext';
 import { applyRadioAudioSession } from '../lib/audioSession';
+import { extractSaleIdFromPaymentUrl } from '../lib/garanti3dHtml';
 import {
   resolveMandatoryUpdate,
   type UpdateRequirement,
@@ -52,14 +57,18 @@ export default function RootLayout() {
       /* Expo Go / dev: native splash yok */
     }
 
-    const [requirement] = await Promise.all([
-      resolveMandatoryUpdate(),
-      applyRadioAudioSession().catch((e) => {
-        console.warn('[audioSession] bootstrap failed:', e);
-      }),
-    ]);
-
-    setUpdateRequirement(requirement);
+    try {
+      const [requirement] = await Promise.all([
+        resolveMandatoryUpdate(),
+        applyRadioAudioSession().catch((e) => {
+          console.warn('[audioSession] bootstrap failed:', e);
+        }),
+      ]);
+      setUpdateRequirement(requirement);
+    } catch (e) {
+      console.warn('[prepareApp] bootstrap failed:', e);
+      setUpdateRequirement({ kind: 'none' });
+    }
   }, []);
 
   useEffect(() => {
@@ -156,8 +165,13 @@ export default function RootLayout() {
 
     let cancelled = false;
     void (async () => {
-      await prepareApp();
-      if (!cancelled) setAppIsReady(true);
+      try {
+        await prepareApp();
+      } catch (e) {
+        console.warn('[RootLayout] prepareApp failed:', e);
+      } finally {
+        if (!cancelled) setAppIsReady(true);
+      }
     })();
 
     return () => {
@@ -186,24 +200,48 @@ function RootNavigation({
   setUpdateRequirement: (value: UpdateRequirement) => void;
 }) {
   const { locale } = useLocale();
+  const router = useRouter();
+
+  useEffect(() => {
+    const handleUrl = (url: string | null) => {
+      if (!url) return;
+      const sid = extractSaleIdFromPaymentUrl(url);
+      if (!sid) return;
+      if (
+        url.includes('payment/result') ||
+        url.includes('odeme-ozeti') ||
+        url.startsWith('cocobongoloyalty:')
+      ) {
+        router.replace({
+          pathname: '/events/payment/result',
+          params: { sid },
+        } as import('expo-router').Href);
+      }
+    };
+
+    void Linking.getInitialURL().then(handleUrl);
+    const sub = Linking.addEventListener('url', (e) => handleUrl(e.url));
+    return () => sub.remove();
+  }, [router]);
 
   return (
     <BrandingProvider>
       <AuthProvider>
-        <ForceUpdateScreen
-          requirement={updateRequirement}
-          onRequirementChange={setUpdateRequirement}
-        />
-        <Stack
-          key={locale}
-          screenOptions={{
-            gestureEnabled: true,
-            // Tam ekran swipe back dikey scroll ile çakışıyor (özellikle detay sayfaları).
-            // Geri jesti yalnızca sol kenardan çalışsın.
-            fullScreenGestureEnabled: false,
-            animation: 'none',
-          }}
-        >
+        <AppPanelsProvider>
+          <ForceUpdateScreen
+            requirement={updateRequirement}
+            onRequirementChange={setUpdateRequirement}
+          />
+          <Stack
+            key={locale}
+            screenOptions={{
+              gestureEnabled: true,
+              // Tam ekran swipe back dikey scroll ile çakışıyor (özellikle detay sayfaları).
+              // Geri jesti yalnızca sol kenardan çalışsın.
+              fullScreenGestureEnabled: false,
+              animation: 'none',
+            }}
+          >
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="(admin-tabs)" options={{ headerShown: false }} />
@@ -243,6 +281,23 @@ function RootNavigation({
               }}
             />
             <Stack.Screen
+              name="events/payment/result"
+              options={{
+                headerShown: false,
+                animation: 'none',
+                gestureEnabled: false,
+              }}
+            />
+            <Stack.Screen
+              name="events/seats/[id]"
+              options={{
+                headerShown: false,
+                animation: 'none',
+                gestureEnabled: true,
+                fullScreenGestureEnabled: false,
+              }}
+            />
+            <Stack.Screen
               name="admin/events/[id]"
               options={{
                 headerShown: false,
@@ -258,6 +313,13 @@ function RootNavigation({
             />
             <Stack.Screen
               name="admin/events/sales"
+              options={{
+                headerShown: false,
+                animation: 'none',
+              }}
+            />
+            <Stack.Screen
+              name="admin/events/tickets"
               options={{
                 headerShown: false,
                 animation: 'none',
@@ -296,7 +358,8 @@ function RootNavigation({
               options={{ presentation: 'modal', title: 'Modal' }}
             />
         </Stack>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
+        </AppPanelsProvider>
       </AuthProvider>
     </BrandingProvider>
   );

@@ -1,6 +1,7 @@
 import { fetchCollection } from './collections';
 import {
   fetchEventById,
+  fetchGroupEventById,
   fetchUpcomingEvents,
   isPastEvent,
   type EventItem,
@@ -10,6 +11,7 @@ import { pickImageSrc, pickLocalizedText } from './giseMappers';
 import { t } from './i18n';
 import {
   fetchEventActivePriceInfo,
+  getActivePriceInfoFromEvent,
   type ActivePriceInfo,
 } from './startingPrice';
 import { fetchEventRemainingTickets } from './urgencyBadge';
@@ -18,6 +20,7 @@ export type HomeSectionEvent = EventItem & {
   featuredImageUrl?: string | null;
   priceInfo?: ActivePriceInfo | null;
   remainingTickets?: number | null;
+  isGroup?: boolean;
 };
 
 export type HomeSection = {
@@ -55,7 +58,14 @@ async function enrichHomeEvent(
   event: HomeSectionEvent,
 ): Promise<HomeSectionEvent> {
   const [priceInfo, remainingTickets] = await Promise.all([
-    fetchEventActivePriceInfo(event.id),
+    (async () => {
+      const fromApi = getActivePriceInfoFromEvent(event);
+      if (fromApi) return fromApi;
+      return fetchEventActivePriceInfo(event.id, {
+        commissionFee: event.commissionFee,
+        isCommissionExtra: event.isCommissionExtra,
+      });
+    })(),
     needsTicketCount(event)
       ? fetchEventRemainingTickets(event.id)
       : Promise.resolve(null),
@@ -67,6 +77,11 @@ async function enrichHomeEvent(
   };
 }
 
+/**
+ * Web buildHomeSection ile aynı:
+ * - Manuel slotlar: event1…N + groupid desteği, CMS sırası korunur
+ * - Upcoming: kategori/mekan filtresinde limit yok (API max 200/sayfa)
+ */
 async function resolveSectionEvents(
   section: Record<string, unknown>,
 ): Promise<HomeSectionEvent[]> {
@@ -80,15 +95,26 @@ async function resolveSectionEvents(
       !venueId && section.category != null
         ? String(section.category)
         : undefined;
-    const res = await fetchUpcomingEvents(
-      venueId
-        ? { venueId }
-        : categoryId
-          ? { category: categoryId }
-          : undefined,
-    );
-    const items = res.items.slice(0, 12) as HomeSectionEvent[];
-    return Promise.all(items.map((event) => enrichHomeEvent(event)));
+
+    const allItems: HomeSectionEvent[] = [];
+    let page = 1;
+    let hasMore = true;
+    const perPage = 200;
+
+    while (hasMore && page <= 30) {
+      const res = await fetchUpcomingEvents(
+        venueId
+          ? { venueId, perPage, page }
+          : categoryId
+            ? { category: categoryId, perPage, page }
+            : { perPage, page },
+      );
+      allItems.push(...(res.items as HomeSectionEvent[]));
+      hasMore = Boolean(res.hasMore);
+      page += 1;
+    }
+
+    return Promise.all(allItems.map((event) => enrichHomeEvent(event)));
   }
 
   const manual = section.events;
@@ -108,33 +134,43 @@ async function resolveSectionEvents(
   const resolved: HomeSectionEvent[] = [];
 
   for (const { entry: row } of entries) {
-    const eventId = typeof row.id === 'string' ? row.id : '';
-    if (!eventId) continue;
+    const groupId =
+      typeof row.groupid === 'string' && row.groupid.trim()
+        ? row.groupid.trim()
+        : '';
+    const eventId =
+      typeof row.id === 'string' && row.id.trim() ? row.id.trim() : '';
+
     try {
-      const event = await fetchEventById(eventId);
+      let event: EventItem | null = null;
+      let isGroup = false;
+
+      if (groupId) {
+        event = await fetchGroupEventById(groupId);
+        isGroup = !!event;
+      } else if (eventId) {
+        event = await fetchEventById(eventId);
+      }
+
+      if (!event) continue;
+      if (isPastEvent(event)) continue;
+      if (event.hideFromMobileHome) continue;
+
       const featuredImageUrl = pickImageSrc(row.featuredImage);
       const enriched: HomeSectionEvent = {
         ...event,
+        isGroup,
         featuredImageUrl: isFeatured ? featuredImageUrl : null,
         imageUrl:
           isFeatured && featuredImageUrl ? featuredImageUrl : event.imageUrl,
       };
       resolved.push(await enrichHomeEvent(enriched));
     } catch {
-      /* skip missing events */
+      /* tek slot hatası tüm section'ı düşürmesin */
     }
   }
 
   return resolved;
-}
-
-function dedupeEvents(events: HomeSectionEvent[]): HomeSectionEvent[] {
-  const seen = new Set<string>();
-  return events.filter((event) => {
-    if (seen.has(event.id)) return false;
-    seen.add(event.id);
-    return true;
-  });
 }
 
 async function resolveSectionTitle(
@@ -152,11 +188,8 @@ export async function fetchHomeSections(): Promise<HomeSection[]> {
 
   const sections = await Promise.all(
     rows.map(async (row) => {
-      const events = dedupeEvents(
-        (await resolveSectionEvents(row)).filter(
-          (event) => !isPastEvent(event) && !event.hideFromMobileHome,
-        ),
-      );
+      // Backend / CMS ne yolladıysa — ekstra slice/dedupe yok
+      const events = await resolveSectionEvents(row);
       const title = await resolveSectionTitle(row);
       const venueId =
         row.useVenue === true && row.venue != null

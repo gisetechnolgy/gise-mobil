@@ -15,7 +15,7 @@ import {
 import {
   formatHomeSectionTitle,
   homeSectionTitleStyle,
-  homeSeeAllStyle,
+  homeSeeAllLinkStyle,
 } from "../../constants/homeTypography";
 import type {
   SectionLoadingProps,
@@ -26,7 +26,7 @@ import {
   fetchFeaturedVenuesForHome,
   type VenueItem,
 } from "../../lib/venues";
-import { useTranslation } from "../context/LocaleContext";
+import { useTranslation } from "../context/_LocaleContext";
 import HomeFeaturedVenueCard, {
   getHomeFeaturedVenueCardWidth,
   HomeFeaturedVenueCardSkeleton,
@@ -98,7 +98,7 @@ const FeaturedVenuesSection = forwardRef<
           }
           hitSlop={8}
         >
-          <Text style={homeSeeAllStyle(isTablet)}>{t("showAll")}</Text>
+          <Text style={homeSeeAllLinkStyle(isTablet)}>{t("showAll")}</Text>
         </TouchableOpacity>
       </View>
 

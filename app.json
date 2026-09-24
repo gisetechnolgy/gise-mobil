@@ -7,21 +7,18 @@
     "updates": {
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/767ec9cb-31f5-4892-92dd-402ab8672058"
+      "url": "https://u.expo.dev/26840d6b-d168-4a23-8bf6-1aa6193841e2"
     },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "cocobongoloyalty",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "11",
+      "buildNumber": "12",
       "bundleIdentifier": "cocobongo.gisekibris.com",
       "infoPlist": {
         "UIBackgroundModes": [
-          "audio",
-          "remote-notification",
           "audio",
           "remote-notification"
         ],
@@ -31,18 +28,22 @@
     "android": {
       "package": "cocobongo.gisekibris.com",
       "versionCode": 7,
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/icon.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.POST_NOTIFICATIONS"
       ]
+    },
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#FFFFFF",
+      "translucent": true
     },
     "web": {
       "output": "static",
@@ -50,6 +51,17 @@
     },
     "plugins": [
       "expo-router",
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser",
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true,
+          "enableBackgroundRecording": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -70,6 +82,12 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Başvuru formuna logo ve belge yüklemek için galeri erişimi gerekir."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
@@ -84,9 +102,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "767ec9cb-31f5-4892-92dd-402ab8672058"
+        "projectId": "26840d6b-d168-4a23-8bf6-1aa6193841e2"
       }
     },
-    "owner": "gisekibris"
+    "owner": "thears123"
   }
 }

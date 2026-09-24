@@ -1,8 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
   StyleSheet,
   View,
@@ -10,13 +12,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppColors } from '../../../constants/colors';
+import { promptCameraPermissionOnOpen } from '../../../lib/cameraPermission';
 import ScanResultModal from './ScanResultModal';
 import {
+  FORBIDDEN_SCAN_EVALUATION,
+  isForbiddenError,
   lookupTicketScan,
   markTicketAsUsed,
   type TicketScanEvaluation,
 } from '../../../lib/ticketScan';
-import { useTranslation } from '../../context/LocaleContext';
+import { useTranslation } from '../../context/_LocaleContext';
 import { AppText as Text } from '@/components/ui/AppText';
 
 const SCAN_DEBOUNCE_MS = 2500;
@@ -31,7 +36,8 @@ export default function QrBarcodeScanner({ onClose }: Props) {
   const { width } = useWindowDimensions();
   const frameSize = Math.min(width - 72, 300);
 
-  const [permission, requestPermission] = useCameraPermissions();
+  const [permission, , getPermission] = useCameraPermissions();
+  const [checking, setChecking] = useState(true);
   const [paused, setPaused] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,11 +45,30 @@ export default function QrBarcodeScanner({ onClose }: Props) {
   const [evaluation, setEvaluation] = useState<TicketScanEvaluation | null>(null);
   const lastScanRef = useRef<{ value: string; at: number } | null>(null);
 
-  useEffect(() => {
-    if (!permission?.granted) {
-      void requestPermission();
+  const ensurePermission = useCallback(async () => {
+    setChecking(true);
+    const result = await promptCameraPermissionOnOpen();
+    await getPermission().catch(() => null);
+    if (!result.granted) {
+      Alert.alert(t('scanTicket'), t('cameraPermissionDenied'), [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('openSettings'),
+          onPress: () => {
+            void Linking.openSettings();
+          },
+        },
+      ]);
     }
-  }, [permission?.granted, requestPermission]);
+    setChecking(false);
+    return result.granted;
+  }, [getPermission, t]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void ensurePermission();
+    }, [ensurePermission]),
+  );
 
   const resumeScanning = useCallback(() => {
     setModalVisible(false);
@@ -80,19 +105,23 @@ export default function QrBarcodeScanner({ onClose }: Props) {
     try {
       await markTicketAsUsed(evaluation.ticket.id);
       resumeScanning();
-    } catch {
-      setEvaluation({
-        status: 'error',
-        ticket: evaluation.ticket,
-        title: t('usageFailed'),
-        message: t('usageFailedMessage'),
-        canUse: false,
-      });
+    } catch (err) {
+      setEvaluation(
+        isForbiddenError(err)
+          ? { ...FORBIDDEN_SCAN_EVALUATION, ticket: evaluation.ticket }
+          : {
+              status: 'error',
+              ticket: evaluation.ticket,
+              title: t('usageFailed'),
+              message: t('usageFailedMessage'),
+              canUse: false,
+            },
+      );
       setUsing(false);
     }
   }, [evaluation, resumeScanning, t]);
 
-  if (!permission) {
+  if (checking || !permission) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator color="#fff" size="large" />
@@ -106,8 +135,21 @@ export default function QrBarcodeScanner({ onClose }: Props) {
         <Text style={styles.permissionText}>
           {t('cameraPermissionRequired')}
         </Text>
-        <Pressable style={styles.permissionBtn} onPress={() => void requestPermission()}>
+        <Pressable
+          style={styles.permissionBtn}
+          onPress={() => {
+            void ensurePermission();
+          }}
+        >
           <Text style={styles.permissionBtnText}>{t('grantPermission')}</Text>
+        </Pressable>
+        <Pressable
+          style={styles.permissionBtnSecondary}
+          onPress={() => {
+            void Linking.openSettings();
+          }}
+        >
+          <Text style={styles.permissionBtnSecondaryText}>{t('openSettings')}</Text>
         </Pressable>
         <Pressable style={styles.closeGhost} onPress={onClose}>
           <Text style={styles.closeGhostText}>{t('close')}</Text>
@@ -148,7 +190,7 @@ export default function QrBarcodeScanner({ onClose }: Props) {
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <Pressable style={styles.closeBtn} onPress={onClose}>
-          <Text style={styles.closeBtnText}>Kapat</Text>
+          <Text style={styles.closeBtnText}>{t('close')}</Text>
         </Pressable>
       </View>
 
@@ -179,24 +221,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   dimTop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.62)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
   middleRow: {
     flexDirection: 'row',
+    height: undefined,
   },
   dimSide: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.62)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
   dimBottom: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.62)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
-    paddingTop: 24,
+    paddingTop: 18,
+  },
+  hint: {
+    color: '#fff',
+    fontFamily: 'PoppinsSemiBold',
+    fontSize: 14,
+    textAlign: 'center',
     paddingHorizontal: 24,
   },
   corner: {
@@ -229,53 +278,62 @@ const styles = StyleSheet.create({
     borderBottomWidth: STROKE,
     borderRightWidth: STROKE,
   },
-  hint: {
-    color: '#fff',
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
   footer: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 24,
-    paddingTop: 12,
+    alignItems: 'center',
   },
   closeBtn: {
-    backgroundColor: AppColors.accent,
-    borderRadius: 14,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 10,
   },
   closeBtnText: {
     color: '#fff',
-    fontSize: 16,
-    fontFamily: 'PoppinsBold',
+    fontFamily: 'PoppinsSemiBold',
+    fontSize: 15,
   },
   permissionText: {
     color: '#fff',
+    fontFamily: 'PoppinsRegular',
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 16,
   },
   permissionBtn: {
     backgroundColor: AppColors.accent,
-    borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    marginBottom: 12,
+    borderRadius: 10,
+    marginBottom: 10,
   },
   permissionBtnText: {
     color: '#fff',
-    fontFamily: 'PoppinsBold',
+    fontFamily: 'PoppinsSemiBold',
+    fontSize: 14,
+  },
+  permissionBtnSecondary: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  permissionBtnSecondaryText: {
+    color: '#fff',
+    fontFamily: 'PoppinsSemiBold',
+    fontSize: 14,
   },
   closeGhost: {
-    padding: 8,
+    marginTop: 8,
+    padding: 10,
   },
   closeGhostText: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.75)',
+    fontFamily: 'PoppinsRegular',
+    fontSize: 14,
   },
 });

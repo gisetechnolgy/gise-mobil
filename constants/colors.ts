@@ -6,6 +6,9 @@ export const AppColors = {
   /** Web: backgroundSecondary */
   background: '#F1F1F1',
 
+  /** Web: sectionBG — ana sayfa bölümleri */
+  sectionBg: '#E6E6E6',
+
   /** Web: background / card offer */
   cardBg: '#FFFFFF',
 

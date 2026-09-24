@@ -164,6 +164,22 @@ export function normalizeCityForFirestore(
   return trimmed.toLowerCase();
 }
 
+/** API'den gelen CY şehir kodunu (nicosia) UI Türkçe adına (Lefkoşa) çevir */
+export function denormalizeCityForDisplay(
+  countryCode: string,
+  city: string,
+): string {
+  const trimmed = city.trim();
+  if (!trimmed) return '';
+  if (countryCode !== 'CY') return trimmed;
+
+  const lower = trimmed.toLowerCase();
+  const match = Object.entries(REGISTER_CY_CITY_EN).find(
+    ([, en]) => en === lower,
+  );
+  return match?.[0] ?? trimmed;
+}
+
 /**
  * Telefon ülke kodları — kapsamlı dünya listesi.
  * Listeyi alfabetik Türkçe etikete göre dizdik. İlk 3 (Türkiye/KKTC/Kıbrıs)

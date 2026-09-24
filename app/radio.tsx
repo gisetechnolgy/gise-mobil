@@ -132,7 +132,7 @@ export default function RadioDetailScreen() {
             ) : (
               <Image
                 source={heroSource}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 resizeMode="cover"
               />
             )}
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.04)",
   },
   artLoading: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
   },

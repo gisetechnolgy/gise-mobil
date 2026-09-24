@@ -1,8 +1,7 @@
 import { api } from './api';
 import type { EventItem } from './events';
-import { GiseListResponse, mapEventRecord, mapVenueRecord } from './giseMappers';
-import { enrichEventsWithVenues } from './venues';
-import type { VenueItem } from './venues';
+import { GiseListResponse, mapEventRecord } from './giseMappers';
+import { enrichEventsWithVenues, fetchVenues, type VenueItem } from './venues';
 
 export type SearchResults = {
   events: EventItem[];
@@ -95,6 +94,7 @@ function sortByRelevance<T>(
   if (!q) return items;
   return [...items]
     .map((item) => ({ item, score: scoreFn(item, q) }))
+    .filter((row) => row.score > 0)
     .sort((a, b) => b.score - a.score)
     .map((row) => row.item);
 }
@@ -109,11 +109,13 @@ export async function searchPlatform(
   const scope = options?.scope ?? 'all';
   const searchEvents = scope === 'all' || scope === 'events';
   const searchVenues = scope === 'all' || scope === 'venues';
-  const perPage = options?.full ? 80 : Math.min(options?.limit ?? 8, 80);
+  const perPage = options?.full ? 80 : Math.min(options?.limit ?? 10, 80);
+  const cap = options?.full ? perPage : (options?.limit ?? 10);
 
   const eventParams = new URLSearchParams({
     q,
     perPage: String(perPage),
+    page: '1',
     isActive: 'true',
     isVerified: 'true',
     sort: 'startdate',
@@ -121,46 +123,27 @@ export async function searchPlatform(
     status: 'upcoming',
   });
 
-  const venueParams = new URLSearchParams({
-    q,
-    perPage: String(perPage),
-    sort: 'name',
-    order: 'asc',
-  });
-
-  const [eventRes, venueRes] = await Promise.all([
+  const [eventRes, allVenues] = await Promise.all([
     searchEvents
       ? api.get<GiseListResponse<Record<string, unknown>>>(
           `/events?${eventParams.toString()}`,
         )
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
-    searchVenues
-      ? api.get<GiseListResponse<Record<string, unknown>>>(
-          `/venues?${venueParams.toString()}`,
-        )
-      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    // Web gibi: mekanları API q ile değil, listeden isimle filtrele
+    searchVenues ? fetchVenues() : Promise.resolve([] as VenueItem[]),
   ]);
 
   let events = (eventRes.data ?? []).map((row) => mapEventRecord(row));
   if (searchEvents) {
     events = await enrichEventsWithVenues(events);
-    events = sortByRelevance(events, q, rankEvent);
+    events = sortByRelevance(events, q, rankEvent).slice(0, cap);
+  } else {
+    events = [];
   }
 
-  let venues = (venueRes.data ?? []).map((row) => mapVenueRecord(row));
+  let venues: VenueItem[] = [];
   if (searchVenues) {
-    venues = sortByRelevance(venues, q, rankVenue);
-  }
-
-  const cap = options?.full ? perPage : (options?.limit ?? 8);
-
-  if (!options?.full) {
-    if (searchEvents) {
-      events = events.slice(0, cap);
-    }
-    if (searchVenues) {
-      venues = venues.slice(0, cap);
-    }
+    venues = sortByRelevance(allVenues, q, rankVenue).slice(0, cap);
   }
 
   return { events, venues };

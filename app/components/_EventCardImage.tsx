@@ -2,7 +2,7 @@ import { Image, ImageContentFit } from "expo-image";
 import { useMemo } from "react";
 import { StyleProp, ViewStyle } from "react-native";
 import { resolveEventImageUrl } from "../../lib/events";
-import { RemoteCardImage } from "./RemoteCardImage";
+import { RemoteCardImage } from "./_RemoteCardImage";
 
 type Props = {
   imageUrl: string | null | undefined;

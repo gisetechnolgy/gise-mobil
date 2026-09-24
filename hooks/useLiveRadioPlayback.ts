@@ -1,28 +1,39 @@
-import { Audio } from "expo-av";
+import { createAudioPlayer, type AudioPlayer } from "expo-audio";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { applyRadioAudioSession } from "../lib/audioSession";
 
-async function safelyUnloadSound(s: Audio.Sound): Promise<void> {
+type StatusSub = { remove: () => void };
+
+function safelyReleasePlayer(
+  player: AudioPlayer,
+  subscription: StatusSub | null,
+): void {
   try {
-    await s.stopAsync();
+    subscription?.remove();
+  } catch {
+    /* listener zaten kopmuş */
+  }
+  try {
+    player.pause();
   } catch {
     /* yayın dururken kesinti */
   }
   try {
-    await s.unloadAsync();
+    player.remove();
   } catch {
-    /* zaten unload */
+    /* zaten release */
   }
 }
 
 /**
- * Canlı yayın — `expo-av` (Expo Go ile aynı yerleşik yol; EAS ipa’da expo-audio stream’i sessiz kesebiliyordu).
+ * Canlı yayın — `expo-audio` (SDK 57; Expo Go + EAS).
  */
 export function useLiveRadioPlayback(streamUrl: string | null) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const playerRef = useRef<AudioPlayer | null>(null);
+  const subscriptionRef = useRef<StatusSub | null>(null);
   const isTogglingRef = useRef(false);
 
   const clearPlaybackState = useCallback(() => {
@@ -30,74 +41,61 @@ export function useLiveRadioPlayback(streamUrl: string | null) {
     setIsBuffering(false);
   }, []);
 
+  const releaseCurrent = useCallback(() => {
+    const player = playerRef.current;
+    const subscription = subscriptionRef.current;
+    playerRef.current = null;
+    subscriptionRef.current = null;
+    if (player) safelyReleasePlayer(player, subscription);
+  }, []);
+
   useEffect(() => {
     return () => {
-      const s = soundRef.current;
-      soundRef.current = null;
-      if (s) void safelyUnloadSound(s);
+      releaseCurrent();
       clearPlaybackState();
     };
-  }, [clearPlaybackState]);
+  }, [releaseCurrent, clearPlaybackState]);
 
   useEffect(() => {
     if (!streamUrl) {
-      const s = soundRef.current;
-      soundRef.current = null;
+      releaseCurrent();
       clearPlaybackState();
-      if (s) void safelyUnloadSound(s);
     }
-  }, [streamUrl, clearPlaybackState]);
+  }, [streamUrl, releaseCurrent, clearPlaybackState]);
 
   const toggle = useCallback(async () => {
     if (isTogglingRef.current || !streamUrl) return;
     isTogglingRef.current = true;
     try {
-      if (soundRef.current) {
-        const s = soundRef.current;
-        soundRef.current = null;
+      if (playerRef.current) {
+        releaseCurrent();
         clearPlaybackState();
-        await safelyUnloadSound(s);
         return;
       }
 
       setIsBuffering(true);
       await applyRadioAudioSession();
 
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: streamUrl },
-        { shouldPlay: true, isLooping: false },
+      const player = createAudioPlayer({ uri: streamUrl });
+      const subscription = player.addListener(
+        "playbackStatusUpdate",
         (status) => {
-          if (!status.isLoaded) {
-            if ("error" in status && status.error) {
-              console.warn("[useLiveRadioPlayback] load error:", status.error);
-              soundRef.current = null;
-              clearPlaybackState();
-            }
-            return;
-          }
-          if (status.isPlaying) {
-            soundRef.current = sound;
-            setIsPlaying(true);
-            setIsBuffering(false);
-          }
+          setIsPlaying(status.playing);
+          setIsBuffering(status.isBuffering);
         },
-        false,
       );
 
-      const initial = await sound.getStatusAsync();
-      if (initial.isLoaded && initial.isPlaying) {
-        soundRef.current = sound;
-        setIsPlaying(true);
-        setIsBuffering(false);
-      }
+      playerRef.current = player;
+      subscriptionRef.current = subscription;
+      player.play();
     } catch (e) {
-      soundRef.current = null;
+      releaseCurrent();
       clearPlaybackState();
-      console.warn("[useLiveRadioPlayback] createAsync / session failed:", e);
+      console.warn("[useLiveRadioPlayback] create / session failed:", e);
     } finally {
       isTogglingRef.current = false;
     }
-  }, [streamUrl, clearPlaybackState]);
+  }, [streamUrl, clearPlaybackState, releaseCurrent]);
 
   return { isPlaying, isBuffering, toggle };
 }

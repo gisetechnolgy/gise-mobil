@@ -3,7 +3,9 @@ import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
+  Linking,
   Pressable,
   StyleSheet,
   TextInput,
@@ -11,13 +13,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppColors } from '../../../constants/colors';
+import { promptCameraPermissionOnOpen } from '../../../lib/cameraPermission';
 import {
+  FORBIDDEN_SCAN_EVALUATION,
+  isForbiddenError,
   lookupTicketByPnr,
   markTicketAsUsed,
   type TicketScanEvaluation,
 } from '../../../lib/ticketScan';
 import ScanResultModal from './ScanResultModal';
-import { useTranslation } from '../../context/LocaleContext';
+import { useTranslation } from '../../context/_LocaleContext';
 import { AppText as Text } from '@/components/ui/AppText';
 
 export default function StaffScanHome() {
@@ -27,6 +32,7 @@ export default function StaffScanHome() {
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [using, setUsing] = useState(false);
+  const [openingCamera, setOpeningCamera] = useState(false);
   const [evaluation, setEvaluation] = useState<TicketScanEvaluation | null>(null);
 
   const closeModal = useCallback(() => {
@@ -54,17 +60,44 @@ export default function StaffScanHome() {
     try {
       await markTicketAsUsed(evaluation.ticket.id);
       closeModal();
-    } catch {
-      setEvaluation({
-        status: 'error',
-        ticket: evaluation.ticket,
-        title: t('usageFailed'),
-        message: t('usageFailedMessage'),
-        canUse: false,
-      });
+    } catch (err) {
+      setEvaluation(
+        isForbiddenError(err)
+          ? { ...FORBIDDEN_SCAN_EVALUATION, ticket: evaluation.ticket }
+          : {
+              status: 'error',
+              ticket: evaluation.ticket,
+              title: t('usageFailed'),
+              message: t('usageFailedMessage'),
+              canUse: false,
+            },
+      );
       setUsing(false);
     }
   }, [evaluation, closeModal, t]);
+
+  const openQrScanner = useCallback(async () => {
+    if (openingCamera) return;
+    setOpeningCamera(true);
+    try {
+      const result = await promptCameraPermissionOnOpen();
+      if (!result.granted) {
+        Alert.alert(t('scanTicket'), t('cameraPermissionDenied'), [
+          { text: t('cancel'), style: 'cancel' },
+          {
+            text: t('openSettings'),
+            onPress: () => {
+              void Linking.openSettings();
+            },
+          },
+        ]);
+        return;
+      }
+      router.push('/admin/scan-qr');
+    } finally {
+      setOpeningCamera(false);
+    }
+  }, [openingCamera, router, t]);
 
   const canCheck = pnr.trim().length > 0 && !loading;
 
@@ -104,11 +137,18 @@ export default function StaffScanHome() {
         <View style={styles.divider} />
 
         <Pressable
-          style={styles.qrBtn}
-          onPress={() => router.push('/admin/scan-qr')}
+          style={[styles.qrBtn, openingCamera && styles.pnrBtnDisabled]}
+          onPress={() => void openQrScanner()}
+          disabled={openingCamera}
         >
-          <Ionicons name="qr-code-outline" size={42} color="#fff" />
-          <Text style={styles.qrBtnText}>QR Okut</Text>
+          {openingCamera ? (
+            <ActivityIndicator color="#fff" size="large" />
+          ) : (
+            <>
+              <Ionicons name="qr-code-outline" size={42} color="#fff" />
+              <Text style={styles.qrBtnText}>QR Okut</Text>
+            </>
+          )}
         </Pressable>
       </View>
 

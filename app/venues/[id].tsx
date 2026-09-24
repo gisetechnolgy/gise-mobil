@@ -2,338 +2,110 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Linking,
   ScrollView,
+  Share,
   StyleSheet,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import {
-  EventCardImage,
-  prefetchEventImages,
-} from "../components/EventCardImage";
-import HtmlContent from "../components/HtmlContent";
-import { RemoteCardImage } from "../components/RemoteCardImage";
 import { AppColors } from "../../constants/colors";
-import { useTranslation } from "../context/LocaleContext";
+import {
+  DETAIL_ACCENT,
+  DETAIL_BODY_GAP,
+  DETAIL_BODY_OVERLAP,
+  DETAIL_BODY_PX,
+  DETAIL_LAYOUT_THUMB,
+  DETAIL_PAGE_BG,
+  DETAIL_THUMB_MIN_HEIGHT,
+  DETAIL_THUMB_RADIUS,
+  DETAIL_THUMB_WIDTH,
+  LIST_CARD,
+  PAST_EVENTS_PAGE,
+} from "../../constants/mobileDetail";
 import { appRefreshControl } from "../../lib/appRefreshControl";
-import { formatVenueLine } from "../../lib/formatVenueLine";
 import { formatCityLabel } from "../../lib/cities";
-import { fetchCategories, fetchVenueCategories } from "../../lib/definitions";
+import { fetchVenueCategories } from "../../lib/definitions";
 import {
   EventItem,
-  eventImageCacheKey,
   fetchEventsForVenue,
-  formatEventDateLong,
-  formatEventTime,
-  htmlToPlainText,
 } from "../../lib/events";
-import { useIsTablet } from "../../lib/responsive";
-import { resolveRemoteImageUrl } from "../../lib/remoteImage";
-import { useAuth } from "../context/AuthContext";
-import { isVenueFollowed, toggleVenueFollow } from "../../lib/followedVenues";
-import { AppText as Text } from "@/components/ui/AppText";
+import {
+  enrichEventsWithPriceInfo,
+  type ActivePriceInfo,
+} from "../../lib/startingPrice";
+import { GISE_WEB_URL } from "../../lib/appConfig";
+import {
+  isVenueFollowed,
+  toggleVenueFollow,
+} from "../../lib/followedVenues";
 import {
   fetchVenueById,
   venueImageCacheKey,
   type VenueItem,
 } from "../../lib/venues";
+import { useAuth } from "../context/AuthContext";
+import { useTranslation } from "../context/_LocaleContext";
+import { RemoteCardImage } from "../components/_RemoteCardImage";
+import ClampedHtmlSection from "../components/detail/ClampedHtmlSection";
+import DetailActionButton, {
+  DetailActionsRow,
+} from "../components/detail/DetailActionButton";
+import DetailCard from "../components/detail/DetailCard";
+import DetailMetaRow from "../components/detail/DetailMetaRow";
+import HomeEventHorizontalCard from "../components/detail/HomeEventHorizontalCard";
+import ImmersiveDetailHero from "../components/detail/ImmersiveDetailHero";
+import { AppText as Text } from "@/components/ui/AppText";
+import { resolveRemoteImageUrl } from "../../lib/remoteImage";
 
-const SKELETON = "#D8DCE2";
-const EVENT_CARD_IMAGE_WIDTH = { phone: 128, tablet: 156 };
-const EVENT_CARD_MIN_HEIGHT = { phone: 128, tablet: 148 };
+type PricedEvent = EventItem & { priceInfo?: ActivePriceInfo | null };
 
-function SkeletonBlock({
-  width = "100%",
-  height,
-  borderRadius = 12,
-  style,
-}: {
-  width?: number | `${number}%` | "100%";
-  height: number;
-  borderRadius?: number;
-  style?: object;
-}) {
-  return (
-    <View
-      style={[
-        { width, height, borderRadius, backgroundColor: SKELETON },
-        style,
-      ]}
-    />
-  );
-}
-
-function getEventCategoryLabel(
-  event: EventItem,
-  categoryLabels: Record<string, string>,
-): string {
-  if (event.category && categoryLabels[event.category]) {
-    return categoryLabels[event.category];
-  }
-  return event.categoryLabel?.trim() || event.category?.trim() || "";
-}
-
-function getVenueCategoryLabel(
-  venue: VenueItem,
-  categoryLabels: Record<string, string>,
-): string {
-  return venue.categories
-    .map((id) => categoryLabels[id])
-    .filter(Boolean)
-    .join(", ");
-}
-
-function EventInfoRow({
-  icon,
-  label,
-  isTablet,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  isTablet: boolean;
-}) {
-  if (!label) return null;
-  return (
-    <View style={styles.infoRow}>
-      <Ionicons
-        name={icon}
-        size={isTablet ? 15 : 13}
-        color={AppColors.cardText}
-        style={styles.infoIcon}
-      />
-      <Text
-        style={[styles.infoText, isTablet && styles.infoTextTablet]}
-        numberOfLines={2}
-      >
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-function openDirections(venue: VenueItem) {
-  if (venue.coordinates) {
-    const [lat, lng] = venue.coordinates.split(",").map((part) => part.trim());
-    if (lat && lng) {
-      void Linking.openURL(
-        `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
-      );
-      return;
-    }
-  }
-  const query = [venue.address, formatCityLabel(venue.city)]
-    .filter(Boolean)
-    .join(", ");
-  if (!query) return;
-  void Linking.openURL(
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
-  );
-}
-
-function EventCardSkeleton({ isTablet }: { isTablet: boolean }) {
-  const imageWidth = isTablet
-    ? EVENT_CARD_IMAGE_WIDTH.tablet
-    : EVENT_CARD_IMAGE_WIDTH.phone;
-  const cardMinHeight = isTablet
-    ? EVENT_CARD_MIN_HEIGHT.tablet
-    : EVENT_CARD_MIN_HEIGHT.phone;
-
-  return (
-    <View style={styles.eventCard}>
-      <SkeletonBlock
-        width={imageWidth}
-        height={cardMinHeight}
-        borderRadius={0}
-        style={styles.eventCardImage}
-      />
-      <View style={[styles.eventCardBody, isTablet && styles.eventCardBodyTablet]}>
-        <SkeletonBlock width="36%" height={11} borderRadius={6} />
-        <SkeletonBlock
-          width="88%"
-          height={15}
-          borderRadius={6}
-          style={{ marginTop: 8 }}
-        />
-        <View style={styles.titleDivider} />
-        <SkeletonBlock width="72%" height={12} borderRadius={6} style={{ marginTop: 4 }} />
-        <SkeletonBlock width="58%" height={12} borderRadius={6} style={{ marginTop: 6 }} />
-        <SkeletonBlock width="42%" height={12} borderRadius={6} style={{ marginTop: 6 }} />
-      </View>
-    </View>
-  );
-}
-
-function VenueDetailSkeleton({
-  insets,
-  isTablet,
-  onBack,
-}: {
-  insets: { top: number };
-  isTablet: boolean;
-  onBack: () => void;
-}) {
-  const thumb = isTablet ? 116 : 100;
-  const actionHeight = isTablet ? 44 : 40;
-
-  return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 40 }}
-    >
-      <View style={[styles.bannerWrap, isTablet && styles.bannerWrapTablet]}>
-        <View style={[StyleSheet.absoluteFillObject, styles.bannerSkeleton]} />
-        <View style={styles.bannerOverlay} />
-        <TouchableOpacity
-          onPress={onBack}
-          style={[styles.backFloating, { top: insets.top + 4 }]}
-        >
-          <Ionicons name="chevron-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <View style={[styles.bannerTitleWrap, { paddingTop: insets.top + 8 }]}>
-          <SkeletonBlock
-            width={isTablet ? "52%" : "58%"}
-            height={isTablet ? 28 : 24}
-            borderRadius={8}
-          />
-        </View>
-      </View>
-
-      <View style={[styles.body, isTablet && styles.bodyTablet]}>
-        <View style={[styles.summaryRow, isTablet && styles.summaryRowTablet]}>
-          <SkeletonBlock
-            width={thumb}
-            height={thumb}
-            borderRadius={isTablet ? 14 : 12}
-          />
-          <View style={[styles.summaryCard, isTablet && styles.summaryCardTablet]}>
-            <View style={styles.summaryMeta}>
-              <SkeletonBlock width="38%" height={13} borderRadius={6} />
-              <SkeletonBlock
-                width="52%"
-                height={14}
-                borderRadius={6}
-                style={{ marginTop: 8 }}
-              />
-              <SkeletonBlock
-                width="46%"
-                height={14}
-                borderRadius={6}
-                style={{ marginTop: 8 }}
-              />
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.actionRow}>
-          <View style={{ flex: 1.2 }}>
-            <SkeletonBlock
-              height={actionHeight}
-              borderRadius={isTablet ? 10 : 8}
-            />
-          </View>
-          <View style={{ flex: 0.75 }}>
-            <SkeletonBlock
-              height={actionHeight}
-              borderRadius={isTablet ? 10 : 8}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <SkeletonBlock
-              height={actionHeight}
-              borderRadius={isTablet ? 10 : 8}
-            />
-          </View>
-        </View>
-
-        <View style={[styles.infoCard, isTablet && styles.infoCardTablet]}>
-          <SkeletonBlock width="22%" height={isTablet ? 19 : 17} borderRadius={6} />
-          <SkeletonBlock width="100%" height={14} borderRadius={6} style={{ marginTop: 4 }} />
-          <SkeletonBlock width="96%" height={14} borderRadius={6} style={{ marginTop: 8 }} />
-          <SkeletonBlock width="88%" height={14} borderRadius={6} style={{ marginTop: 8 }} />
-          <SkeletonBlock width="64%" height={14} borderRadius={6} style={{ marginTop: 8 }} />
-        </View>
-
-        <SkeletonBlock
-          width={isTablet ? "78%" : "88%"}
-          height={isTablet ? 18 : 16}
-          borderRadius={6}
-        />
-
-        <View style={styles.eventsList}>
-          {Array.from({ length: 2 }).map((_, idx) => (
-            <EventCardSkeleton key={`venue-event-skel-${idx}`} isTablet={isTablet} />
-          ))}
-        </View>
-      </View>
-    </ScrollView>
-  );
+async function withPrices(events: EventItem[]): Promise<PricedEvent[]> {
+  return enrichEventsWithPriceInfo(events);
 }
 
 export default function VenueDetailScreen() {
-  const { t } = useTranslation();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const isTablet = useIsTablet();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
+
   const [venue, setVenue] = useState<VenueItem | null>(null);
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [eventCategoryLabels, setEventCategoryLabels] = useState<
-    Record<string, string>
-  >({});
-  const [venueCategoryLabels, setVenueCategoryLabels] = useState<
-    Record<string, string>
-  >({});
-  const [venueLoading, setVenueLoading] = useState(true);
-  const [eventsLoading, setEventsLoading] = useState(true);
+  const [upcoming, setUpcoming] = useState<PricedEvent[]>([]);
+  const [past, setPast] = useState<PricedEvent[]>([]);
+  const [pastVisible, setPastVisible] = useState(PAST_EVENTS_PAGE);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isFollowed, setIsFollowed] = useState(false);
-  const [followBusy, setFollowBusy] = useState(false);
+  const [followed, setFollowed] = useState(false);
+  const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>(
+    {},
+  );
+  const [layoutModal, setLayoutModal] = useState(false);
 
   const load = useCallback(
     async (options?: { silent?: boolean }) => {
       if (!id) return;
       const silent = options?.silent ?? false;
-      if (!silent) {
-        setVenueLoading(true);
-        setEventsLoading(true);
-      }
-      setError(null);
+      if (!silent) setLoading(true);
       try {
-        const [venueData, eventCategories, venueCategories] = await Promise.all([
+        const [v, cats, up, pa] = await Promise.all([
           fetchVenueById(id),
-          fetchCategories(),
           fetchVenueCategories(),
+          fetchEventsForVenue(id, { status: "upcoming" }),
+          fetchEventsForVenue(id, { status: "past", perPage: 30 }),
         ]);
-        if (!venueData) {
-          setError(t("venueNotFound"));
-          setVenue(null);
-          setEvents([]);
-          return;
-        }
-        setVenue(venueData);
-        setEventCategoryLabels(
-          Object.fromEntries(eventCategories.map((c) => [c.value, c.label])),
+        setVenue(v);
+        setCategoryLabels(
+          Object.fromEntries(cats.map((c) => [c.value, c.label])),
         );
-        setVenueCategoryLabels(
-          Object.fromEntries(venueCategories.map((c) => [c.value, c.label])),
-        );
-        if (!silent) setVenueLoading(false);
-
-        const upcoming = await fetchEventsForVenue(id, { status: "upcoming" });
-        setEvents(upcoming);
-        void prefetchEventImages(upcoming);
-      } catch {
-        setError(t("venueLoadError"));
+        const [upP, paP] = await Promise.all([withPrices(up), withPrices(pa)]);
+        setUpcoming(upP);
+        setPast(paP);
       } finally {
-        if (!silent) {
-          setVenueLoading(false);
-          setEventsLoading(false);
-        }
+        if (!silent) setLoading(false);
       }
     },
     [id],
@@ -344,15 +116,12 @@ export default function VenueDetailScreen() {
   }, [load]);
 
   useEffect(() => {
-    if (!user?.id || !venue?.id) {
-      setIsFollowed(false);
+    if (!user?.id || !id) {
+      setFollowed(false);
       return;
     }
-    void (async () => {
-      const followed = await isVenueFollowed(user.id, venue.id);
-      setIsFollowed(followed);
-    })();
-  }, [user?.id, venue?.id]);
+    void isVenueFollowed(user.id, id).then(setFollowed);
+  }, [user?.id, id]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -363,667 +132,359 @@ export default function VenueDetailScreen() {
     }
   }, [load]);
 
-  const bannerUri = resolveRemoteImageUrl(
-    venue?.bannerUrl,
-    venue ? venueImageCacheKey(venue) : null,
-  );
-  const logoUri = resolveRemoteImageUrl(
-    venue?.logoUrl,
-    venue ? `${venue.id}-logo` : null,
-  );
-  const venueAboutText = venue?.about ? htmlToPlainText(venue.about) : "";
+  const bannerUrl =
+    resolveRemoteImageUrl(venue?.bannerUrl) ||
+    resolveRemoteImageUrl(venue?.logoUrl);
+  const thumbUrl =
+    resolveRemoteImageUrl(venue?.logoUrl) ||
+    resolveRemoteImageUrl(venue?.bannerUrl);
+  const layoutUrl = resolveRemoteImageUrl(venue?.layoutUrl);
+
+  const categoryLabel = (venue?.categories || [])
+    .map((cid) => categoryLabels[cid])
+    .filter(Boolean)
+    .join(", ");
+  const cityLabel = formatCityLabel(venue?.city);
+  const addressLabel = [cityLabel, venue?.address].filter(Boolean).join(", ");
+
+  const mapsHref = (() => {
+    if (venue?.coordinates) {
+      const [lat, lng] = venue.coordinates.split(",").map((p) => p.trim());
+      if (lat && lng) {
+        return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      }
+    }
+    if (addressLabel) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressLabel)}`;
+    }
+    return null;
+  })();
+
+  const onShare = async () => {
+    if (!venue) return;
+    const url = venue.venueUrl || `${GISE_WEB_URL}/mekanlar/${venue.id}`;
+    try {
+      await Share.share({ message: `${venue.name}\n${url}`, url });
+    } catch {
+      /* cancelled */
+    }
+  };
+
+  const visiblePast = past.slice(0, pastVisible);
+  const hasMorePast = past.length > pastVisible;
 
   return (
-    <SafeAreaView edges={["left", "right"]} style={styles.safe}>
+    <SafeAreaView edges={["left", "right"]} style={styles.page}>
       <StatusBar style="light" />
       <Stack.Screen options={{ headerShown: false }} />
 
-      {error && !venueLoading && !venue ? (
-        <View style={[styles.loader, { paddingTop: insets.top }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backFloating}>
-            <Ionicons name="chevron-back" size={24} color={AppColors.cardText} />
+      {!venue && !loading ? (
+        <View style={styles.notFound}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={22} color={AppColors.cardText} />
           </TouchableOpacity>
-          <Text style={styles.errorText}>{error ?? t("venueNotFound")}</Text>
+          <Text style={{ marginTop: 12 }}>{t("venueNotFound")}</Text>
+        </View>
+      ) : loading && !venue ? (
+        <View style={styles.notFound}>
+          <ActivityIndicator color={DETAIL_ACCENT} size="large" />
         </View>
       ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          refreshControl={appRefreshControl(refreshing, onRefresh)}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        >
-          <View style={[styles.bannerWrap, isTablet && styles.bannerWrapTablet]}>
-            {venueLoading ? (
-              <View style={[StyleSheet.absoluteFillObject, styles.bannerSkeleton]} />
-            ) : bannerUri ? (
-              <RemoteCardImage
-                uri={bannerUri}
-                recyclingKey={venue?.id ?? "venue-banner"}
-                contentFit="cover"
-                style={StyleSheet.absoluteFillObject}
-                fallbackSource={require("../../assets/images/img-placeholder.jpg")}
-              />
-            ) : (
-              <View style={[StyleSheet.absoluteFillObject, styles.bannerFallback]} />
-            )}
-            <View style={styles.bannerOverlay} />
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={[styles.backFloating, { top: insets.top + 4 }]}
-            >
-              <Ionicons name="chevron-back" size={24} color="#fff" />
-            </TouchableOpacity>
-            <View style={[styles.bannerTitleWrap, { paddingTop: insets.top + 8 }]}>
-              {venueLoading ? (
-                <SkeletonBlock
-                  width={isTablet ? "52%" : "58%"}
-                  height={isTablet ? 28 : 24}
-                  borderRadius={8}
-                />
-              ) : (
-                <Text
-                  style={[styles.bannerTitle, isTablet && styles.bannerTitleTablet]}
-                  numberOfLines={2}
-                >
-                  {venue?.name}
-                </Text>
-              )}
-            </View>
-          </View>
+        <View style={{ flex: 1 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingBottom: 40,
+            }}
+            refreshControl={appRefreshControl(refreshing, onRefresh)}
+          >
+            <ImmersiveDetailHero
+              title={venue?.name || " "}
+              imageUrl={bannerUrl}
+              cacheKey={venue ? venueImageCacheKey(venue) : null}
+              recyclingKey={venue ? `${venue.id}-hero` : "v-hero"}
+            />
 
-          <View style={[styles.body, isTablet && styles.bodyTablet]}>
-            {venueLoading || !venue ? (
-              <>
-                <View style={[styles.summaryRow, isTablet && styles.summaryRowTablet]}>
-                  <SkeletonBlock
-                    width={isTablet ? 116 : 100}
-                    height={isTablet ? 116 : 100}
-                    borderRadius={isTablet ? 14 : 12}
-                  />
-                  <View style={[styles.summaryCard, isTablet && styles.summaryCardTablet]}>
-                    <SkeletonBlock width="38%" height={13} borderRadius={6} />
-                    <SkeletonBlock width="52%" height={14} borderRadius={6} style={{ marginTop: 8 }} />
-                    <SkeletonBlock width="46%" height={14} borderRadius={6} style={{ marginTop: 8 }} />
-                  </View>
-                </View>
-                <View style={styles.actionRow}>
-                  <View style={{ flex: 1.2 }}>
-                    <SkeletonBlock height={isTablet ? 44 : 40} borderRadius={isTablet ? 10 : 8} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <SkeletonBlock height={isTablet ? 44 : 40} borderRadius={isTablet ? 10 : 8} />
-                  </View>
-                </View>
-              </>
-            ) : (
-              <>
-            <View style={[styles.summaryRow, isTablet && styles.summaryRowTablet]}>
-              <RemoteCardImage
-                uri={logoUri}
-                recyclingKey={`${venue.id}-logo`}
-                contentFit="cover"
-                style={[styles.summaryThumb, isTablet && styles.summaryThumbTablet]}
-                fallbackSource={require("../../assets/images/img-placeholder.jpg")}
-              />
-              <View style={[styles.summaryCard, isTablet && styles.summaryCardTablet]}>
-                <View style={styles.summaryMeta}>
-                  {getVenueCategoryLabel(venue, venueCategoryLabels) ? (
-                    <Text
-                      style={[styles.summaryCategory, isTablet && styles.summaryCategoryTablet]}
-                      numberOfLines={1}
-                    >
-                      # {getVenueCategoryLabel(venue, venueCategoryLabels)}
-                    </Text>
-                  ) : null}
-                  {venue.city ? (
-                    <View style={styles.summaryInfoRow}>
-                      <Ionicons
-                        name="location"
-                        size={isTablet ? 18 : 16}
-                        color={AppColors.cardText}
-                      />
-                      <Text
-                        style={[styles.summaryInfoText, isTablet && styles.summaryInfoTextTablet]}
-                        numberOfLines={1}
-                      >
-                        {formatCityLabel(venue.city)}
-                      </Text>
-                    </View>
-                  ) : null}
-                  {venue.phone ? (
-                    <TouchableOpacity
-                      style={styles.summaryInfoRow}
-                      onPress={() => void Linking.openURL(`tel:${venue.phone}`)}
-                    >
-                      <Ionicons
-                        name="call"
-                        size={isTablet ? 18 : 16}
-                        color={AppColors.cardText}
-                      />
-                      <Text
-                        style={[styles.summaryInfoText, isTablet && styles.summaryInfoTextTablet]}
-                        numberOfLines={1}
-                      >
-                        {venue.phone}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                activeOpacity={0.88}
-                onPress={async () => {
-                  if (!user?.id || !venue?.id || followBusy) return;
-                  setFollowBusy(true);
-                  try {
-                    const next = await toggleVenueFollow(user.id, venue.id);
-                    setIsFollowed(next);
-                  } finally {
-                    setFollowBusy(false);
-                  }
-                }}
-                style={[styles.actionBtnPrimary, styles.actionBtnFollow, isTablet && styles.actionBtnTablet]}
-              >
-                <Ionicons
-                  name={isFollowed ? "checkmark-circle" : "person-add"}
-                  size={20}
-                  color={AppColors.navText}
-                />
-                <Text style={[styles.actionBtnText, isTablet && styles.actionBtnTextTablet]}>
-                  {followBusy ? "..." : isFollowed ? t("followingBtn") : t("follow")}
-                </Text>
-              </TouchableOpacity>
-              {venue.phone ? (
-                <TouchableOpacity
-                  activeOpacity={0.88}
-                  onPress={() => void Linking.openURL(`tel:${venue.phone}`)}
-                  style={[styles.actionBtnPrimary, styles.actionBtnCall, isTablet && styles.actionBtnTablet]}
-                >
-                  <Ionicons name="call" size={20} color={AppColors.navText} />
-                  <Text style={[styles.actionBtnText, isTablet && styles.actionBtnTextTablet]}>
-                    Ara
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
-              <TouchableOpacity
-                activeOpacity={0.88}
-                onPress={() => openDirections(venue)}
-                style={[styles.actionBtnSecondary, isTablet && styles.actionBtnTablet]}
-              >
-                <Ionicons name="navigate" size={20} color={AppColors.navText} />
-                <Text style={[styles.actionBtnText, isTablet && styles.actionBtnTextTablet]}>
-                  Yol tarifi
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {venueAboutText ? (
-              <View style={[styles.infoCard, isTablet && styles.infoCardTablet]}>
-                <Text style={[styles.sectionTitle, isTablet && styles.sectionTitleTablet]}>
-                  Bilgi
-                </Text>
-                <HtmlContent
-                  html={venue.about!}
-                  style={{
-                    fontSize: isTablet ? 15 : 14,
-                    lineHeight: isTablet ? 22 : 20,
-                    color: AppColors.cardText,
-                  }}
-                />
-              </View>
-            ) : null}
-              </>
-            )}
-
-            <Text style={[styles.eventsHeading, isTablet && styles.eventsHeadingTablet]}>
-              Bilet almak istediğiniz etkinliği seçin
-            </Text>
-
-            {eventsLoading ? (
-              <View style={styles.eventsList}>
-                {Array.from({ length: 2 }).map((_, idx) => (
-                  <EventCardSkeleton key={`venue-event-skel-${idx}`} isTablet={isTablet} />
-                ))}
-              </View>
-            ) : events.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <View style={[styles.emptyCard, isTablet && styles.emptyCardTablet]}>
-                  <View
-                    style={[styles.emptyIconWrap, isTablet && styles.emptyIconWrapTablet]}
-                  >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={isTablet ? 34 : 30}
-                      color={AppColors.cardText}
-                    />
-                  </View>
-                  <Text style={[styles.emptyTitle, isTablet && styles.emptyTitleTablet]}>
-                    Yaklaşan etkinlik bulunmuyor
-                  </Text>
-                  <Text style={[styles.emptySubtitle, isTablet && styles.emptySubtitleTablet]}>
-                    Bu mekana ait yeni etkinlikler eklendiğinde burada görünecek.
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.eventsList}>
-                {events.map((event) => {
-                  const categoryLabel = getEventCategoryLabel(
-                    event,
-                    eventCategoryLabels,
-                  );
-                  const imageWidth = isTablet
-                    ? EVENT_CARD_IMAGE_WIDTH.tablet
-                    : EVENT_CARD_IMAGE_WIDTH.phone;
-                  const cardMinHeight = isTablet
-                    ? EVENT_CARD_MIN_HEIGHT.tablet
-                    : EVENT_CARD_MIN_HEIGHT.phone;
-
-                  return (
-                    <TouchableOpacity
-                      key={event.id}
-                      style={styles.eventCard}
-                      activeOpacity={0.85}
-                      onPress={() => router.push(`/events/${event.id}`)}
-                    >
-                      <EventCardImage
-                        imageUrl={event.imageUrl}
-                        cacheKey={eventImageCacheKey(event)}
-                        recyclingKey={event.id}
-                        contentFit="cover"
-                        style={[
-                          styles.eventCardImage,
-                          { width: imageWidth, minHeight: cardMinHeight },
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.eventCardBody,
-                          isTablet && styles.eventCardBodyTablet,
-                        ]}
-                      >
-                        {categoryLabel ? (
-                          <Text
-                            style={[styles.category, isTablet && styles.categoryTablet]}
-                            numberOfLines={1}
-                          >
-                            {categoryLabel}
-                          </Text>
-                        ) : null}
-                        <Text
-                          style={[styles.title, isTablet && styles.titleTablet]}
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                        >
-                          {event.title}
-                        </Text>
-                        <View style={styles.titleDivider} />
-                        <View style={styles.infoList}>
-                          <EventInfoRow
-                            icon="location"
-                            label={formatVenueLine(event)}
-                            isTablet={isTablet}
-                          />
-                          <EventInfoRow
-                            icon="calendar"
-                            label={formatEventDateLong(event.startsAt)}
-                            isTablet={isTablet}
-                          />
-                          <EventInfoRow
-                            icon="time"
-                            label={formatEventTime(event.startsAt)}
-                            isTablet={isTablet}
-                          />
-                        </View>
+            <View style={styles.body}>
+              {venue ? (
+                <>
+                  <DetailCard>
+                    <View style={styles.summaryInner}>
+                      <View style={styles.thumbWrap}>
+                        <RemoteCardImage
+                          uri={thumbUrl}
+                          recyclingKey={`${venue.id}-thumb`}
+                          style={StyleSheet.absoluteFill}
+                          contentFit="cover"
+                        />
                       </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                      <View style={styles.summaryMeta}>
+                        <DetailMetaRow
+                          icon="pricetag-outline"
+                          label={categoryLabel}
+                        />
+                        <DetailMetaRow
+                          icon="location-outline"
+                          label={addressLabel}
+                          href={mapsHref}
+                        />
+                        <DetailMetaRow
+                          icon="call-outline"
+                          label={venue.phone || ""}
+                          href={venue.phone ? `tel:${venue.phone}` : null}
+                        />
+                      </View>
+                    </View>
+                    <DetailActionsRow>
+                      <DetailActionButton
+                        icon={followed ? "heart" : "heart-outline"}
+                        label={followed ? t("followingBtn") : t("follow")}
+                        onPress={() => {
+                          if (!user?.id) {
+                            router.push("/(auth)/login");
+                            return;
+                          }
+                          void toggleVenueFollow(user.id, venue.id).then(
+                            setFollowed,
+                          );
+                        }}
+                      />
+                      {layoutUrl || venue.youtube ? (
+                        <DetailActionButton
+                          icon="play-circle-outline"
+                          label={t("media")}
+                          onPress={() => {
+                            if (venue.youtube && !layoutUrl) {
+                              void Linking.openURL(
+                                venue.youtube.startsWith("http")
+                                  ? venue.youtube
+                                  : `https://www.youtube.com/watch?v=${venue.youtube}`,
+                              );
+                              return;
+                            }
+                            if (layoutUrl) setLayoutModal(true);
+                          }}
+                        />
+                      ) : null}
+                      <DetailActionButton
+                        icon="share-outline"
+                        label={t("share")}
+                        onPress={() => void onShare()}
+                        flex={0.7}
+                      />
+                    </DetailActionsRow>
+                  </DetailCard>
+
+                  {venue.about?.trim() ? (
+                    <DetailCard>
+                      <ClampedHtmlSection
+                        title={t("about")}
+                        html={venue.about}
+                      />
+                    </DetailCard>
+                  ) : null}
+
+                  {layoutUrl ? (
+                    <DetailCard>
+                      <View style={styles.layoutRow}>
+                        <View style={{ flex: 1, paddingRight: 10 }}>
+                          <Text style={[styles.cardTitle, { marginBottom: 4 }]}>
+                            {t("venueLayout")}
+                          </Text>
+                          <Text style={styles.layoutHint}>
+                            {t("venueLayoutHint")}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => setLayoutModal(true)}
+                          style={styles.layoutThumb}
+                        >
+                          <RemoteCardImage
+                            uri={layoutUrl}
+                            recyclingKey={`${venue.id}-layout`}
+                            style={StyleSheet.absoluteFill}
+                            contentFit="cover"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </DetailCard>
+                  ) : null}
+
+                  <View>
+                    <DetailCard>
+                      <Text style={styles.cardTitle}>
+                        {t("upcomingEvents")}
+                      </Text>
+                      {upcoming.length > 0 ? (
+                        <View style={{ gap: LIST_CARD.gap }}>
+                          {upcoming.map((event) => (
+                            <HomeEventHorizontalCard
+                              key={event.id}
+                              event={event}
+                            />
+                          ))}
+                        </View>
+                      ) : (
+                        <View style={styles.empty}>
+                          <Text style={styles.emptyTitle}>
+                            {t("noEventsVenue")}
+                          </Text>
+                          <Text style={styles.emptyHint}>
+                            {t("noEventsVenueHint")}
+                          </Text>
+                        </View>
+                      )}
+                    </DetailCard>
+
+                    {past.length > 0 ? (
+                      <DetailCard style={{ marginTop: DETAIL_BODY_GAP }}>
+                        <Text style={styles.cardTitle}>{t("pastEvents")}</Text>
+                        <View style={{ gap: LIST_CARD.gap }}>
+                          {visiblePast.map((event) => (
+                            <HomeEventHorizontalCard
+                              key={event.id}
+                              event={event}
+                            />
+                          ))}
+                        </View>
+                        {hasMorePast ? (
+                          <TouchableOpacity
+                            onPress={() =>
+                              setPastVisible((n) => n + PAST_EVENTS_PAGE)
+                            }
+                            style={styles.loadMore}
+                          >
+                            <Text style={styles.loadMoreText}>
+                              {t("loadMore")}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : null}
+                      </DetailCard>
+                    ) : null}
+                  </View>
+                </>
+              ) : null}
+            </View>
+          </ScrollView>
+
+          {layoutUrl && layoutModal ? (
+            <View style={styles.modalOverlay}>
+              <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                onPress={() => setLayoutModal(false)}
+              />
+              <View style={styles.modalCard}>
+                <TouchableOpacity
+                  onPress={() => setLayoutModal(false)}
+                  style={{ alignSelf: "flex-end", padding: 4 }}
+                >
+                  <Ionicons name="close" size={22} color={AppColors.cardText} />
+                </TouchableOpacity>
+                <RemoteCardImage
+                  uri={layoutUrl}
+                  recyclingKey={`${venue?.id}-layout-modal`}
+                  style={{ width: "100%", height: 360 }}
+                  contentFit="contain"
+                />
               </View>
-            )}
-          </View>
-        </ScrollView>
+            </View>
+          ) : null}
+        </View>
       )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: AppColors.background,
-  },
-  loader: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: AppColors.background,
-  },
-  backFloating: {
-    position: "absolute",
-    left: 12,
-    zIndex: 2,
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bannerWrap: {
-    height: 200,
-    backgroundColor: AppColors.navBg,
-  },
-  bannerWrapTablet: {
-    height: 240,
-  },
-  bannerFallback: {
-    backgroundColor: AppColors.navBg,
-  },
-  bannerSkeleton: {
-    backgroundColor: SKELETON,
-  },
-  bannerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.42)",
-  },
-  bannerTitleWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 56,
-  },
-  bannerTitle: {
-    color: "#fff",
-    fontSize: 22,
-    fontFamily: "PoppinsBold",
-    textAlign: "center",
-  },
-  bannerTitleTablet: {
-    fontSize: 28,
-  },
+  page: { flex: 1, backgroundColor: DETAIL_PAGE_BG },
   body: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 16,
+    paddingHorizontal: DETAIL_BODY_PX,
+    marginTop: DETAIL_BODY_OVERLAP,
+    gap: DETAIL_BODY_GAP,
+    zIndex: 3,
   },
-  bodyTablet: {
-    paddingHorizontal: 26,
-    paddingTop: 18,
-    gap: 18,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  summaryRowTablet: {
-    gap: 16,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: AppColors.cardBg,
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    justifyContent: "center",
-    minHeight: 100,
-  },
-  summaryCardTablet: {
-    borderRadius: 14,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    minHeight: 116,
-  },
-  summaryThumb: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    backgroundColor: "#E8ECF0",
-  },
-  summaryThumbTablet: {
-    width: 116,
-    height: 116,
-    borderRadius: 14,
+  summaryInner: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
+  thumbWrap: {
+    width: DETAIL_THUMB_WIDTH,
+    height: DETAIL_THUMB_MIN_HEIGHT,
+    borderRadius: DETAIL_THUMB_RADIUS,
+    overflow: "hidden",
+    backgroundColor: "#E5E7EB",
+    flexShrink: 0,
   },
   summaryMeta: {
+    flex: 1,
     minWidth: 0,
-    gap: 6,
     justifyContent: "center",
-  },
-  summaryCategory: {
-    color: AppColors.accent,
-    fontSize: 13,
-    fontFamily: "PoppinsSemiBold",
-  },
-  summaryCategoryTablet: {
-    fontSize: 14,
-  },
-  summaryInfoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  summaryInfoText: {
-    flex: 1,
-    color: AppColors.cardText,
-    fontSize: 14,
-    fontFamily: "PoppinsMedium",
-  },
-  summaryInfoTextTablet: {
-    fontSize: 15,
-  },
-  actionRow: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 8,
+    paddingTop: 2,
   },
-  actionBtnPrimary: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    minHeight: 40,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: AppColors.accent,
-  },
-  actionBtnFollow: {
-    flex: 1.2,
-  },
-  actionBtnCall: {
-    flex: 0.75,
-  },
-  actionBtnSecondary: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    minHeight: 40,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: AppColors.secondaryButton,
-  },
-  actionBtnTablet: {
-    minHeight: 44,
-    borderRadius: 10,
-  },
-  actionBtnText: {
-    color: AppColors.navText,
-    fontSize: 13,
+  cardTitle: {
+    marginBottom: 10,
     fontFamily: "PoppinsBold",
-  },
-  actionBtnTextTablet: {
-    fontSize: 14,
-  },
-  infoCard: {
-    backgroundColor: AppColors.cardBg,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 2,
-    gap: 4,
-  },
-  infoCardTablet: {
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 4,
-    gap: 6,
-  },
-  sectionTitle: {
-    color: AppColors.heading,
     fontSize: 16,
-    fontFamily: "PoppinsBold",
+    color: "#0F2137",
   },
-  sectionTitleTablet: {
-    fontSize: 18,
-  },
-  eventsHeading: {
-    color: AppColors.heading,
-    fontSize: 16,
-    fontFamily: "PoppinsBold",
-    lineHeight: 22,
-  },
-  eventsHeadingTablet: {
-    fontSize: 18,
-    lineHeight: 24,
-  },
-  eventsList: {
-    gap: 12,
-  },
-  emptyEvents: {
-    color: "rgba(52, 61, 72, 0.7)",
-    fontSize: 14,
-  },
-  emptyWrap: {
-    alignItems: "center",
-    justifyContent: "flex-start",
-    width: "100%",
-    paddingTop: 8,
-    paddingBottom: 20,
-  },
-  emptyCard: {
-    width: "100%",
-    backgroundColor: AppColors.cardBg,
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 28,
-    alignItems: "center",
-  },
-  emptyCardTablet: {
-    borderRadius: 14,
-    paddingHorizontal: 32,
-    paddingVertical: 36,
-  },
-  emptyIconWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-  emptyIconWrapTablet: {
-    marginBottom: 18,
-  },
-  emptyTitle: {
-    color: AppColors.heading,
-    fontSize: 16,
-    fontFamily: "PoppinsBold",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  emptyTitleTablet: {
-    fontSize: 18,
-    lineHeight: 24,
-  },
-  emptySubtitle: {
-    marginTop: 8,
-    color: "rgba(52, 61, 72, 0.65)",
-    fontSize: 13,
-    fontFamily: "PoppinsMedium",
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  emptySubtitleTablet: {
-    marginTop: 10,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  eventCard: {
-    backgroundColor: AppColors.cardBg,
-    borderRadius: 12,
-    overflow: "hidden",
-    flexDirection: "row",
-    alignItems: "stretch",
-  },
-  eventCardImage: {
-    alignSelf: "stretch",
-    backgroundColor: "#E8ECF0",
-  },
-  eventCardBody: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingRight: 12,
-    paddingLeft: 12,
-    justifyContent: "center",
-  },
-  eventCardBodyTablet: {
-    paddingVertical: 14,
-    paddingRight: 14,
-    paddingLeft: 14,
-  },
-  category: {
-    color: AppColors.accent,
-    fontSize: 11,
-    fontFamily: "PoppinsSemiBold",
-    marginBottom: 2,
-  },
-  categoryTablet: {
+  layoutRow: { flexDirection: "row", alignItems: "center" },
+  layoutHint: {
+    fontFamily: "PoppinsRegular",
     fontSize: 12,
-  },
-  title: {
-    color: AppColors.heading,
-    fontSize: 15,
-    fontFamily: "PoppinsSemiBold",
-    lineHeight: 19,
-  },
-  titleTablet: {
-    fontSize: 17,
-    lineHeight: 22,
-  },
-  titleDivider: {
-    height: 1,
-    backgroundColor: "rgba(52, 61, 72, 0.1)",
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  infoList: {
-    gap: 3,
-    marginTop: 2,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  infoIcon: {
-    width: 14,
-  },
-  infoText: {
-    flex: 1,
-    color: AppColors.cardText,
-    fontSize: 12,
+    color: "#6B7280",
     lineHeight: 16,
-    fontFamily: "PoppinsMedium",
   },
-  infoTextTablet: {
-    fontSize: 13,
-    lineHeight: 17,
+  layoutThumb: {
+    width: DETAIL_LAYOUT_THUMB.width,
+    height: DETAIL_LAYOUT_THUMB.height,
+    borderRadius: DETAIL_LAYOUT_THUMB.radius,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F3F4F6",
   },
-  errorText: {
-    color: "#b91c1c",
+  empty: { paddingVertical: 12, alignItems: "center" },
+  emptyTitle: {
+    fontFamily: "PoppinsSemiBold",
     fontSize: 14,
+    color: "#0F2137",
     textAlign: "center",
-    paddingHorizontal: 24,
+  },
+  emptyHint: {
+    marginTop: 4,
+    fontFamily: "PoppinsRegular",
+    fontSize: 12,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  loadMore: {
+    marginTop: 12,
+    minHeight: 40,
+    borderRadius: 10,
+    backgroundColor: DETAIL_ACCENT,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadMoreText: {
+    fontFamily: "PoppinsBold",
+    fontSize: 13,
+    color: "#FFFFFF",
+  },
+  notFound: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+    zIndex: 50,
+  },
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
   },
 });

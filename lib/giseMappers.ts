@@ -23,6 +23,24 @@ export type GiseListResponse<T> = {
   perPage?: number;
 };
 
+/** Ticket.sale string veya { id } olabilir. */
+function extractSaleId(raw: unknown): string | null {
+  if (raw == null) return null;
+  if (typeof raw === 'string' || typeof raw === 'number') {
+    const s = String(raw).trim();
+    return s && s !== '[object Object]' ? s : null;
+  }
+  if (typeof raw === 'object') {
+    const row = raw as Record<string, unknown>;
+    const id = row.id ?? row.saleId ?? row.sale;
+    if (id != null && (typeof id === 'string' || typeof id === 'number')) {
+      const s = String(id).trim();
+      return s || null;
+    }
+  }
+  return null;
+}
+
 export function pickLocalizedText(
   value: unknown,
   locale: AppLocale = getAppLocale(),
@@ -97,6 +115,7 @@ function hasActiveSpecialOffer(raw: Record<string, unknown>): boolean {
 export function mapEventRecord(raw: Record<string, unknown>) {
   const id = String(raw.id ?? '');
   const banner = pickImageSrc(raw.banner) ?? pickImageSrc(raw.badge);
+  const bannerCard = pickImageSrc(raw.bannerCard);
   const venueLayout = pickImageSrc(raw.venueLayout);
   const rulesRaw = raw.rules as Record<string, unknown> | null | undefined;
   const dressRaw = rulesRaw?.dress;
@@ -114,6 +133,8 @@ export function mapEventRecord(raw: Record<string, unknown>) {
     title: String(raw.name ?? ''),
     description: pickLocalizedText(raw.description) || pickLocalizedText(raw.details),
     imageUrl: banner,
+    /** Web design1 (dikey kart): bannerCard → banner */
+    bannerCardUrl: bannerCard,
     venueLayoutImageUrl: venueLayout,
     startsAt: toIsoDate(raw.startdate) ?? '',
     endsAt: toIsoDate(raw.enddate),
@@ -149,6 +170,12 @@ export function mapEventRecord(raw: Record<string, unknown>) {
     venueSlug: undefined as string | undefined,
     hideFromWebHome: raw.hideFromWebHome === true,
     hideFromMobileHome: raw.hideFromMobileHome === true,
+    startingPrice:
+      raw.startingPrice != null && Number(raw.startingPrice) > 0
+        ? Number(raw.startingPrice)
+        : null,
+    commissionFee: Number(raw.commissionFee ?? 0) || 0,
+    isCommissionExtra: raw.isCommissionExtra === true,
     urgency:
       raw.urgency && typeof raw.urgency === 'object'
         ? (raw.urgency as Record<string, unknown>)
@@ -218,6 +245,43 @@ export function mapTicketRecord(raw: Record<string, unknown>) {
     usedAt: raw.isUsedAt != null ? String(raw.isUsedAt) : null,
     usedBy: raw.isUsedBy != null ? String(raw.isUsedBy) : null,
     channel: raw.channel != null ? String(raw.channel) : null,
+    productId: product
+      ? String(product.id ?? product.key ?? '').trim() || null
+      : null,
+    /** Ürün iade edilebilir mi (API enrich; yoksa null) */
+    productRefundable:
+      product?.refundable == null
+        ? null
+        : product.refundable === true ||
+          product.refundable === 1 ||
+          product.refundable === 'true',
+    /** Etkinlik iade açık mı (API enrich) */
+    eventRefundEnabled: event?.refundEnabled !== false,
+    /** API enrich (opsiyonel; buton buna kilitli değil) */
+    refundEligible:
+      raw.refundEligible == null ? null : raw.refundEligible === true,
+    /** Satış id — müşteri iadesi için gerekli */
+    saleId: extractSaleId(raw.sale),
+    extras: (() => {
+      const ex =
+        raw.extras && typeof raw.extras === 'object'
+          ? (raw.extras as Record<string, unknown>)
+          : null;
+      if (!ex) {
+        return {
+          refunded: false,
+          refundPending: false,
+          refundRequested: false,
+          refundProcessSuccess: false,
+        };
+      }
+      return {
+        refunded: ex.refunded === true,
+        refundPending: ex.refundPending === true,
+        refundRequested: ex.refundRequested === true,
+        refundProcessSuccess: ex.refundProcessSuccess === true,
+      };
+    })(),
   };
 }
 
@@ -234,6 +298,13 @@ export function mapVenueRecord(raw: Record<string, unknown>) {
     about: pickLocalizedText(raw.about),
     logoUrl: pickImageSrc(raw.logo),
     bannerUrl: pickImageSrc(raw.banner),
+    layoutUrl: pickImageSrc(raw.layout) ?? pickImageSrc(
+      raw.details && typeof raw.details === 'object'
+        ? (raw.details as Record<string, unknown>).layout
+        : null,
+    ),
+    youtube: raw.youtube != null ? String(raw.youtube) : null,
+    eventCount: Number(raw.eventCount ?? 0) || 0,
     categories: Array.isArray(raw.categories)
       ? raw.categories.map(String)
       : [],
@@ -256,6 +327,9 @@ export function mapOrganisationCompanyRecord(raw: Record<string, unknown>) {
     about: pickLocalizedText(raw.about),
     logoUrl: pickImageSrc(raw.logo),
     bannerUrl: pickImageSrc(raw.banner),
+    youtube: raw.youtube != null ? String(raw.youtube) : null,
+    eventCount: Number(raw.eventCount ?? 0) || 0,
+    coordinates: raw.coordinates != null ? String(raw.coordinates) : null,
     companyUrl: id
       ? `${GISE_WEB_URL}/organizasyon-sirketleri/${slug ?? id}`
       : undefined,

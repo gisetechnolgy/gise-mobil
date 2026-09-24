@@ -2,7 +2,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -15,15 +14,15 @@ import { useRequireAuth } from '../hooks/useRequireAuth';
 import { AppColors } from '../constants/colors';
 import { useIsTablet } from '../lib/responsive';
 import { AppText as Text } from "@/components/ui/AppText";
+import { TicketQrCode } from '../components/TicketQrCode';
 import {
   fetchMyTickets,
   formatTicketDateLong,
   formatTicketTime,
-  ticketQrImageUrl,
   type TicketItem,
 } from '../lib/tickets';
 
-/** Satış modu / bilet QR — tab bar dışında, derin link ile erişilir. */
+/** Satış modu / bilet QR — consumer tab bar ortasındaki FAB ile açılır. */
 export default function ScanScreen() {
   const router = useRouter();
   const { isLoading, isAuthenticated } = useRequireAuth('/scan');
@@ -83,10 +82,7 @@ export default function ScanScreen() {
           <ActivityIndicator color={AppColors.accent} style={{ marginTop: 24 }} />
         ) : ticket ? (
           <View style={styles.qrCard}>
-            <Image
-              source={{ uri: ticketQrImageUrl(ticket.qrData, qrSize) }}
-              style={{ width: qrSize, height: qrSize }}
-            />
+            <TicketQrCode value={ticket.qrData} size={qrSize} />
             <Text style={styles.eventTitle}>{ticket.eventTitle}</Text>
             {ticket.eventDate ? (
               <Text style={styles.eventDate}>

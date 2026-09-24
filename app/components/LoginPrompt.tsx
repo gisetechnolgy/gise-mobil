@@ -8,7 +8,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppColors } from '../../constants/colors';
 import { useAuth } from '../context/AuthContext';
-import { useTranslation } from '../context/LocaleContext';
+import { useTranslation } from '../context/_LocaleContext';
 import { AppText as Text } from "@/components/ui/AppText";
 
 interface LoginPromptProps {

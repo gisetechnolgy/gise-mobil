@@ -9,9 +9,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { RemoteCardImage } from "../components/RemoteCardImage";
+import { RemoteCardImage } from "../components/_RemoteCardImage";
 import { AppColors } from "../../constants/colors";
-import { useTranslation } from "../context/LocaleContext";
+import { useTranslation } from "../context/_LocaleContext";
 import { appRefreshControl } from "../../lib/appRefreshControl";
 import {
   fetchNewsList,
@@ -78,7 +78,7 @@ export default function NewsScreen() {
   const contentStyle = {
     padding: isTablet ? 26 : 20,
     gap: isTablet ? 16 : 12,
-    paddingBottom: isTablet ? 80 : 60,
+    paddingBottom: isTablet ? 150 : 120,
     flexGrow: 1,
   };
 
@@ -109,7 +109,7 @@ export default function NewsScreen() {
           refreshControl={appRefreshControl(refreshing, onRefresh)}
         >
           {items.length === 0 ? (
-            <Text style={styles.muted}>Henüz haber bulunmuyor.</Text>
+            <Text style={styles.muted}>Henüz blog bulunmuyor.</Text>
           ) : (
             items.map((item) => (
               <TouchableOpacity

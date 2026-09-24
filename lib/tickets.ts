@@ -7,8 +7,6 @@ import { loadVenueMap } from './venues';
 
 export type TicketItem = ReturnType<typeof mapTicketRecord>;
 
-const MOBILE_CHANNELS = new Set(['w', 'm', 'a']);
-
 async function enrichTicketVenueNames<T extends { venueName: string | null }>(
   items: T[],
 ): Promise<T[]> {
@@ -43,9 +41,9 @@ export async function fetchMyTickets(params?: {
     { auth: true },
   );
 
-  const items = (res.data ?? [])
-    .map((row) => mapTicketRecord(row))
-    .filter((t) => !t.channel || MOBILE_CHANNELS.has(t.channel));
+  // Sahiplik filtresi sunucuda (GET /tickets JWT + user kapsamı). Kanal filtresi yok:
+  // satış noktası / yönetici satış modundan alınan biletler de kullanıcıya görünür.
+  const items = (res.data ?? []).map((row) => mapTicketRecord(row));
 
   const enriched = await enrichTicketVenueNames(items);
 
@@ -112,6 +110,109 @@ export function formatTicketTime(iso?: string | null): string {
   }).format(d);
 }
 
-export function ticketQrImageUrl(pnr: string, size = 220): string {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(pnr)}`;
+/** Liste / detay: İade Et butonu gösterilsin mi? (nihai kontrol refund-eligible API’de) */
+export function canRequestTicketRefund(ticket: TicketItem): boolean {
+  if (ticket.isUsed) return false;
+  if (!ticket.saleId) return false;
+  const ex = ticket.extras;
+  if (ex.refunded || ex.refundProcessSuccess) return false;
+  if (ex.refundPending || ex.refundRequested) return false;
+  // refundEligible list enrich’i prod’da snapshot’a takılabiliyor; butonu göster,
+  // ürün/etkinlik kapısını modal → /refund-eligible (canlı stok) karar verir.
+  return true;
+}
+
+export function isTicketRefundDone(ticket: TicketItem): boolean {
+  return (
+    ticket.extras.refunded === true ||
+    ticket.extras.refundProcessSuccess === true
+  );
+}
+
+export function isTicketRefundPending(ticket: TicketItem): boolean {
+  return (
+    ticket.extras.refundPending === true ||
+    ticket.extras.refundRequested === true
+  );
+}
+
+/** Seçilen ürün(ler) için yalnızca o kadar bileti işaretle (aynı satıştaki diğerleri dokunma). */
+export function markTicketsRefundPendingForProducts(
+  items: TicketItem[],
+  saleId: string,
+  productIds: string[],
+  countsByProduct?: Record<string, number>,
+): TicketItem[] {
+  const remaining: Record<string, number> = {};
+  for (const pid of productIds) {
+    remaining[pid] = countsByProduct?.[pid] ?? 1;
+  }
+
+  return items.map((t) => {
+    if (t.saleId !== saleId) return t;
+    const pid = t.productId ?? '';
+    if (!pid || remaining[pid] == null || remaining[pid] <= 0) return t;
+    remaining[pid] -= 1;
+    return {
+      ...t,
+      extras: {
+        ...t.extras,
+        refundPending: true,
+        refundRequested: true,
+      },
+    };
+  });
+}
+
+export function markTicketsRefundDoneForProducts(
+  items: TicketItem[],
+  saleId: string,
+  productIds: string[],
+  countsByProduct?: Record<string, number>,
+): TicketItem[] {
+  const remaining: Record<string, number> = {};
+  for (const pid of productIds) {
+    remaining[pid] = countsByProduct?.[pid] ?? 1;
+  }
+
+  return items.map((t) => {
+    if (t.saleId !== saleId) return t;
+    const pid = t.productId ?? '';
+    if (!pid || remaining[pid] == null || remaining[pid] <= 0) return t;
+    remaining[pid] -= 1;
+    return {
+      ...t,
+      extras: {
+        ...t.extras,
+        refunded: true,
+        refundProcessSuccess: true,
+        refundPending: false,
+        refundRequested: false,
+      },
+    };
+  });
+}
+
+/** @deprecated Satıştaki tüm biletleri işaretler — kısmi iadede kullanma */
+export function markTicketsRefundPending(
+  items: TicketItem[],
+  saleId: string,
+): TicketItem[] {
+  return markTicketsRefundPendingForProducts(
+    items,
+    saleId,
+    items.filter((t) => t.saleId === saleId && t.productId).map((t) => t.productId!),
+  );
+}
+
+/** @deprecated Satıştaki tüm biletleri işaretler — kısmi iadede kullanma */
+export function markTicketsRefundDone(
+  items: TicketItem[],
+  saleId: string,
+): TicketItem[] {
+  return markTicketsRefundDoneForProducts(
+    items,
+    saleId,
+    items.filter((t) => t.saleId === saleId && t.productId).map((t) => t.productId!),
+  );
 }

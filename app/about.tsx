@@ -4,7 +4,7 @@ import {
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTranslation } from "./context/LocaleContext";
+import { useTranslation } from "./context/_LocaleContext";
 import { AppText as Text } from "@/components/ui/AppText";
 
 export default function AboutScreen() {

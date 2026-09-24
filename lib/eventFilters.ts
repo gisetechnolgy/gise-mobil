@@ -9,6 +9,8 @@ export type EventFilterParams = {
   venue?: string;
   date?: EventDateFilter;
   onlyCampaigns?: boolean;
+  /** Navbar Ara → etkinlikler arama chip'i */
+  q?: string;
 };
 
 export const EVENT_DATE_OPTIONS: Array<{
@@ -44,6 +46,7 @@ export function parseEventFilterParams(
     date: validDate,
     onlyCampaigns:
       pick('onlyCampaigns') === 'true' || pick('onlyCampaigns') === '1',
+    q: pick('q')?.trim() || undefined,
   };
 }
 
@@ -57,6 +60,7 @@ export function buildEventFilterParams(
   if (filters.venue) params.venue = filters.venue;
   if (filters.date) params.date = filters.date;
   if (filters.onlyCampaigns) params.onlyCampaigns = 'true';
+  if (filters.q?.trim()) params.q = filters.q.trim();
   return params;
 }
 
@@ -75,6 +79,7 @@ export function getEventFilterKey(
     pickSearchParam(raw.venue) ?? '',
     pickSearchParam(raw.date) ?? '',
     pickSearchParam(raw.onlyCampaigns) ?? '',
+    pickSearchParam(raw.q) ?? '',
   ].join('|');
 }
 

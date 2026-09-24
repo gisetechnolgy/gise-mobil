@@ -42,13 +42,13 @@ export function RemoteCardImage({
 
   return (
     <View className={className} style={[style, styles.frame]}>
-      <View style={[StyleSheet.absoluteFillObject, styles.placeholder]} />
+      <View style={[StyleSheet.absoluteFill, styles.placeholder]} />
 
       {showRemote ? (
         <Image
           source={{ uri: uri! }}
           recyclingKey={recyclingKey ?? uri!}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           contentFit={contentFit}
           cachePolicy="memory-disk"
           priority={priority}
@@ -59,7 +59,7 @@ export function RemoteCardImage({
       ) : fallbackSource ? (
         <Image
           source={fallbackSource}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           contentFit={contentFit}
           recyclingKey={recyclingKey ?? "fallback-image"}
           cachePolicy="memory-disk"
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8ECF0",
   },
   spinnerWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
   },

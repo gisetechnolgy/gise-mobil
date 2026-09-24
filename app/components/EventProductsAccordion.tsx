@@ -6,7 +6,7 @@ import {
   fetchEventProducts,
   type EventProductItem,
 } from "../../lib/eventProducts";
-import { useTranslation } from "../context/LocaleContext";
+import { useTranslation } from "../context/_LocaleContext";
 import { AppText as Text } from "@/components/ui/AppText";
 
 type Props = {
@@ -86,6 +86,8 @@ export default function EventProductsAccordion({ eventId, isTablet }: Props) {
     try {
       const rows = await fetchEventProducts(eventId);
       setProducts(rows);
+    } catch {
+      setProducts([]);
     } finally {
       setLoading(false);
     }
