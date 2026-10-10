@@ -56,6 +56,7 @@ function buildEventListParams(
   if (!filters?.forAdmin) {
     params.isActive = 'true';
     params.isVerified = 'true';
+    params.channel = 'mobile';
   }
 
   if (filters?.venueId) params.venue = filters.venueId;
@@ -219,6 +220,7 @@ export async function fetchEventsForVenue(
     perPage: String(options?.perPage ?? 50),
     isActive: 'true',
     isVerified: 'true',
+    channel: 'mobile',
     venue: venueId,
     sort: 'startdate',
     order: options?.status === 'past' ? 'desc' : 'asc',
@@ -238,6 +240,7 @@ export async function fetchEventsForOrganisationCompany(
     perPage: String(options?.perPage ?? 50),
     isActive: 'true',
     isVerified: 'true',
+    channel: 'mobile',
     organisationCompanies: organisationCompanyId,
     sort: 'startdate',
     order: options?.status === 'past' ? 'desc' : 'asc',
@@ -248,9 +251,17 @@ export async function fetchEventsForOrganisationCompany(
   return enrichEventsWithVenues(items);
 }
 
-export async function fetchEventById(id: string): Promise<EventItem> {
+/**
+ * `forListing`: etkinlik sayfası / öne çıkanlar — mobilde gizlenmiş etkinlik 404 döner.
+ * Ödeme ve koltuk ekranları bunu kullanmaz.
+ */
+export async function fetchEventById(
+  id: string,
+  options?: { forListing?: boolean },
+): Promise<EventItem> {
+  const query = options?.forListing ? '?channel=mobile' : '';
   const raw = await api.get<Record<string, unknown>>(
-    `/events/${encodeURIComponent(id)}`,
+    `/events/${encodeURIComponent(id)}${query}`,
   );
   const event = mapEventRecord(raw);
   const [enriched] = await enrichEventsWithVenues([event]);

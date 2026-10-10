@@ -15,7 +15,6 @@ import { syncPushTokenWithBackend } from "../../lib/push-notifications";
 import type { SectionReloadHandle } from "../../lib/sectionReload";
 import { buildEventsSearchHref, useTabGroup } from "../../lib/navigation";
 import { AppColors } from "../../constants/colors";
-
 export default function HomeScreen() {
   const router = useRouter();
   const tabGroup = useTabGroup();

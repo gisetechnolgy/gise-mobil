@@ -231,6 +231,13 @@ export default function EventPaymentScreen() {
       ),
     [activeCart],
   );
+  const remainingAtEvent = downPaymentLines.reduce(
+    (sum, l) =>
+      sum + Math.max(0, ((l.fullPrice ?? l.price) - l.price) * l.quantity),
+    0,
+  );
+  const hasDownPayment = remainingAtEvent > 0;
+  const grandTotal = total + remainingAtEvent;
   const cardDigits = cardNumber.replace(/\s/g, "");
   const isCardValid =
     cardHolder.trim().length > 2 &&
@@ -506,7 +513,11 @@ export default function EventPaymentScreen() {
                       )
                     </Text>
                     <Text style={styles.summaryValue}>
-                      {formatMoneyTl(line.price * line.quantity)}
+                      {formatMoneyTl(
+                        (line.hasDownPayment
+                          ? line.fullPrice ?? line.price
+                          : line.price) * line.quantity,
+                      )}
                     </Text>
                   </View>
                   {line.hasDownPayment && (line.downPaymentAmount ?? 0) > 0 ? (
@@ -533,13 +544,6 @@ export default function EventPaymentScreen() {
               </Text>
             </View>
           ) : null}
-          {downPaymentLines.length > 0 ? (
-            <Text style={styles.downPaymentNote}>
-              {tReplace("downPaymentTotalInfo", {
-                amount: formatMoneyTl(total),
-              })}
-            </Text>
-          ) : null}
           <View style={[styles.summaryRow, styles.summaryTotalRow]}>
             <Text style={styles.summaryTotalLabel}>
               {t("totalPrice")} (
@@ -549,9 +553,27 @@ export default function EventPaymentScreen() {
               )
             </Text>
             <Text style={styles.summaryTotalValue}>
-              {formatMoneyTl(total)}
+              {formatMoneyTl(grandTotal)}
             </Text>
           </View>
+          {hasDownPayment ? (
+            <>
+              <View style={[styles.summaryRow, styles.summaryNowRow]}>
+                <Text style={styles.summaryNowLabel}>{t("payNowLabel")}</Text>
+                <Text style={styles.summaryNowValue}>
+                  {formatMoneyTl(total)}
+                </Text>
+              </View>
+              <View style={[styles.summaryRow, styles.summaryLastRow]}>
+                <Text style={styles.summaryLabel}>
+                  {t("payAtEventLabel")}
+                </Text>
+                <Text style={styles.summaryValue}>
+                  {formatMoneyTl(remainingAtEvent)}
+                </Text>
+              </View>
+            </>
+          ) : null}
         </View>
 
         {(checkoutMeta?.coupons?.length ?? 0) > 0 &&
@@ -720,7 +742,9 @@ export default function EventPaymentScreen() {
             <Text style={styles.payBtnText}>
               {isDoorcash || totalIsZero
                 ? t("completeReservation")
-                : t("makePayment")}
+                : tReplace("makePaymentWithAmount", {
+                    amount: formatMoneyTl(total),
+                  })}
             </Text>
           )}
         </TouchableOpacity>
@@ -856,6 +880,25 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#E5E7EB",
+  },
+  summaryNowRow: {
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  summaryLastRow: {
+    marginBottom: 0,
+  },
+  summaryNowLabel: {
+    flex: 1,
+    color: AppColors.accent,
+    fontFamily: "PoppinsBold",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  summaryNowValue: {
+    color: AppColors.accent,
+    fontFamily: "PoppinsBold",
+    fontSize: 15,
   },
   summaryLabel: {
     flex: 1,

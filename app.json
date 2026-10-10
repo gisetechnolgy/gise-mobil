@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Coco Bongo",
+    "name": "Gişe Kıbrıs",
     "slug": "cocobongo",
-    "version": "1.0.9",
-    "runtimeVersion": "1.0.9",
+    "version": "2.0.0",
+    "runtimeVersion": "2.0.0",
     "updates": {
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0,
@@ -11,12 +11,17 @@
     },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "cocobongoloyalty",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "scheme": "gisekibris",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "12",
-      "bundleIdentifier": "cocobongo.gisekibris.com",
+      "buildNumber": "4",
+      "bundleIdentifier": "com.nokosoft.gisekibris",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",
@@ -26,11 +31,11 @@
       }
     },
     "android": {
-      "package": "cocobongo.gisekibris.com",
-      "versionCode": 7,
+      "package": "com.nokosoft.gisekibris",
+      "versionCode": 1,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#AE256D",
         "foregroundImage": "./assets/images/icon.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -66,11 +71,11 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 280,
           "resizeMode": "contain",
-          "backgroundColor": "#9F8670",
+          "backgroundColor": "#FFFFFF",
           "dark": {
-            "backgroundColor": "#9F8670"
+            "backgroundColor": "#FFFFFF"
           }
         }
       ],
@@ -91,7 +96,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#FF6B35"
+          "color": "#AE256D"
         }
       ]
     ],

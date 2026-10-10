@@ -171,8 +171,12 @@ export function mapEventRecord(raw: Record<string, unknown>) {
     hideFromWebHome: raw.hideFromWebHome === true,
     hideFromMobileHome: raw.hideFromMobileHome === true,
     startingPrice:
-      raw.startingPrice != null && Number(raw.startingPrice) > 0
+      raw.startingPrice != null && Number(raw.startingPrice) >= 0
         ? Number(raw.startingPrice)
+        : null,
+    maxPrice:
+      raw.maxPrice != null && Number(raw.maxPrice) >= 0
+        ? Number(raw.maxPrice)
         : null,
     commissionFee: Number(raw.commissionFee ?? 0) || 0,
     isCommissionExtra: raw.isCommissionExtra === true,

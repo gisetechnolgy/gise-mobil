@@ -10,12 +10,17 @@ import {
   formatEventTime,
 } from "../../lib/events";
 import { useIsTablet } from "../../lib/responsive";
+import {
+  formatPriceRangeLabel,
+  type ActivePriceInfo,
+} from "../../lib/startingPrice";
+import { useTranslation } from "../context/_LocaleContext";
 import { EventCardImage } from "./_EventCardImage";
 import { HOME_EVENT_CARD_SCALE } from "./HomeEventCard";
 import { AppText as Text } from "@/components/ui/AppText";
 
 type Props = {
-  event: EventItem;
+  event: EventItem & { priceInfo?: ActivePriceInfo | null };
   width: number;
 };
 
@@ -64,9 +69,11 @@ export default function HomeCarouselEventCard({
   width,
 }: Props) {
   const router = useRouter();
+  const { t } = useTranslation();
   const isTablet = useIsTablet();
   const imageSize = isTablet ? IMAGE_SIZE_TABLET : IMAGE_SIZE_PHONE;
   const imageColHeight = imageSize + IMAGE_INSET * 2;
+  const priceLabel = formatPriceRangeLabel(event.priceInfo, t("freeOfCharge"));
 
   return (
     <TouchableOpacity
@@ -124,6 +131,17 @@ export default function HomeCarouselEventCard({
             isTablet={isTablet}
           />
         </View>
+
+        {priceLabel ? (
+          <View style={styles.pricePill}>
+            <Text
+              style={[styles.price, isTablet && styles.priceTablet]}
+              numberOfLines={1}
+            >
+              {priceLabel}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -224,6 +242,25 @@ const styles = StyleSheet.create({
     lineHeight: scaleCard(16),
   },
   infoTextTablet: {
+    fontSize: scaleCard(13),
+    lineHeight: scaleCard(17),
+  },
+  pricePill: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    marginTop: scaleCard(4),
+    backgroundColor: "#e6e6e6",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  price: {
+    color: "#000000",
+    fontFamily: "PoppinsBold",
+    fontSize: scaleCard(12),
+    lineHeight: scaleCard(16),
+  },
+  priceTablet: {
     fontSize: scaleCard(13),
     lineHeight: scaleCard(17),
   },

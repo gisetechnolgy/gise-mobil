@@ -149,7 +149,7 @@ async function resolveSectionEvents(
         event = await fetchGroupEventById(groupId);
         isGroup = !!event;
       } else if (eventId) {
-        event = await fetchEventById(eventId);
+        event = await fetchEventById(eventId, { forListing: true });
       }
 
       if (!event) continue;

@@ -49,7 +49,6 @@ export default function RootLayout() {
   const fontPatchAppliedRef = useRef(false);
   const [updateRequirement, setUpdateRequirement] =
     useState<UpdateRequirement>({ kind: 'none' });
-
   const prepareApp = useCallback(async () => {
     try {
       await SplashScreen.preventAutoHideAsync();
@@ -179,15 +178,17 @@ export default function RootLayout() {
     };
   }, [fontsLoaded, prepareApp]);
 
-  if (!fontsLoaded || !appIsReady) return null;
+  const bootstrapping = !fontsLoaded || !appIsReady;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <LocaleProvider>
-          <RootNavigation updateRequirement={updateRequirement} setUpdateRequirement={setUpdateRequirement} />
-        </LocaleProvider>
-      </SafeAreaProvider>
+      {bootstrapping ? null : (
+        <SafeAreaProvider>
+          <LocaleProvider>
+            <RootNavigation updateRequirement={updateRequirement} setUpdateRequirement={setUpdateRequirement} />
+          </LocaleProvider>
+        </SafeAreaProvider>
+      )}
     </GestureHandlerRootView>
   );
 }

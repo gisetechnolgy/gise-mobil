@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Link, router, type Href } from 'expo-router';
+import { Link, router, useLocalSearchParams, type Href } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -192,7 +192,11 @@ function formatBirthDateDisplay(ymd: string): string {
 export default function RegisterScreen() {
   const { signup } = useAuth();
   const { branding } = useBranding();
-  const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const { email: emailParam } = useLocalSearchParams<{ email?: string }>();
+  const [form, setForm] = useState<FormState>(() => ({
+    ...INITIAL_FORM,
+    email: typeof emailParam === 'string' ? emailParam.trim().toLowerCase() : '',
+  }));
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
   const [submitting, setSubmitting] = useState(false);

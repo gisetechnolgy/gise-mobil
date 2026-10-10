@@ -9,10 +9,11 @@ import {
   formatEventTime,
 } from "../../../lib/events";
 import {
-  formatHomePriceAmount,
+  formatPriceRangeLabel,
   type ActivePriceInfo,
 } from "../../../lib/startingPrice";
 import { useTranslation } from "../../context/_LocaleContext";
+import { formatCityLabel } from "../../../lib/cities";
 import { EventCardImage } from "../_EventCardImage";
 import { AppText as Text } from "@/components/ui/AppText";
 
@@ -42,8 +43,10 @@ export default function HomeEventHorizontalCard({
   const dateLabel = formatEventDateLong(event.startsAt);
   const timeLabel = formatEventTime(event.startsAt);
   const dateTime = timeLabel ? `${dateLabel}, ${timeLabel}` : dateLabel;
-  const venueLabel = event.venueName?.trim() || "";
-  const priceInfo = event.priceInfo;
+  const venueLabel = [event.venueName?.trim(), formatCityLabel(event.city)]
+    .filter(Boolean)
+    .join(", ");
+  const priceLabel = formatPriceRangeLabel(event.priceInfo, t("freeOfCharge"));
   /** Web design2: featured → banner → bannerCard */
   const imageUrl =
     (isFeatured && event.featuredImageUrl) ||
@@ -124,15 +127,17 @@ export default function HomeEventHorizontalCard({
           </Text>
         ) : null}
         <View style={styles.footer}>
-          {priceInfo ? (
-            <Text style={{ flex: 1, flexShrink: 1 }}>
-              <Text style={[styles.price, { fontSize: LIST_CARD.priceSize }]}>
-                {formatHomePriceAmount(priceInfo.minPrice)}
-              </Text>
-              <Text style={[styles.suffix, { fontSize: LIST_CARD.metaSize }]}>
-                {` ${t("heroPriceFromSuffix")}`}
-              </Text>
-            </Text>
+          {priceLabel ? (
+            <View style={styles.priceLine}>
+              <View style={styles.pricePill}>
+                <Text
+                  style={[styles.price, { fontSize: LIST_CARD.priceSize }]}
+                  numberOfLines={1}
+                >
+                  {priceLabel}
+                </Text>
+              </View>
+            </View>
           ) : (
             <View style={{ flex: 1 }} />
           )}
@@ -166,7 +171,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     minWidth: 0,
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   title: {
     fontFamily: "PoppinsBold",
@@ -181,15 +186,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    marginTop: 0,
+    marginTop: "auto",
+  },
+  priceLine: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    alignItems: "flex-start",
+  },
+  pricePill: {
+    maxWidth: "100%",
+    backgroundColor: "#e6e6e6",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
   },
   price: {
     fontFamily: "PoppinsBold",
-    color: AppColors.accent,
-  },
-  suffix: {
-    fontFamily: "PoppinsRegular",
-    color: "#6B7280",
+    color: AppColors.heading,
   },
   buy: {
     fontFamily: "PoppinsBold",

@@ -118,6 +118,7 @@ export async function searchPlatform(
     page: '1',
     isActive: 'true',
     isVerified: 'true',
+    channel: 'mobile',
     sort: 'startdate',
     order: 'asc',
     status: 'upcoming',

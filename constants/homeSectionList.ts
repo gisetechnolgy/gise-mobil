@@ -1,10 +1,10 @@
 /** Yatay liste — web `constants/home-section-list.js` ile birebir */
 
-export const HOME_SECTION_LIST_CARD_HEIGHT = 120;
-export const HOME_SECTION_LIST_CARD_IMAGE_WIDTH = 92;
-export const HOME_SECTION_LIST_CARD_TEXT_PADDING = 14;
-/** Üst/alt metin boşluğu — yan padding'den bir tık fazla */
-export const HOME_SECTION_LIST_CARD_TEXT_PADDING_Y = 17;
+export const HOME_SECTION_LIST_CARD_HEIGHT = 128;
+export const HOME_SECTION_LIST_CARD_IMAGE_WIDTH = 100;
+/** Üst = alt = görsel ile yazı arası (web ile aynı) */
+export const HOME_SECTION_LIST_CARD_TEXT_PADDING = 12;
+export const HOME_SECTION_LIST_CARD_TEXT_PADDING_Y = 12;
 export const HOME_SECTION_LIST_CARD_TEXT_LINE_GAP = 2;
 export const HOME_SECTION_LIST_MOBILE_SCALE = 0.82;
 
@@ -18,15 +18,15 @@ function mobilePx(value: number): number {
 export const LIST_CARD = {
   height: mobilePx(HOME_SECTION_LIST_CARD_HEIGHT),
   imageWidth: mobilePx(HOME_SECTION_LIST_CARD_IMAGE_WIDTH),
-  /** Görsel kolon oranı — 92:115 (width:height) */
+  /** Görsel kolon oranı — 100:128 */
   imageAspect: HOME_SECTION_LIST_CARD_IMAGE_WIDTH / HOME_SECTION_LIST_CARD_HEIGHT,
   textPad: mobilePx(HOME_SECTION_LIST_CARD_TEXT_PADDING),
   textPadY: mobilePx(HOME_SECTION_LIST_CARD_TEXT_PADDING_Y),
   lineGap: mobilePx(HOME_SECTION_LIST_CARD_TEXT_LINE_GAP),
   radius: mobilePx(12),
   titleSize: mobilePx(15),
-  metaSize: mobilePx(12),
-  priceSize: mobilePx(19 * 0.92),
+  metaSize: mobilePx(13),
+  priceSize: mobilePx(15),
   buySize: mobilePx(16 * 0.85),
   gap: mobilePx(10),
   slideGap: 10,

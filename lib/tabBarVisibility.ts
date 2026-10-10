@@ -20,6 +20,9 @@ export function shouldShowAppTabBar(
 
   if (parts[0] && AUTH_ROUTES.has(parts[0])) return false;
 
+  // Destek: sohbet/form alanı tam ekran kullanır
+  if (parts.includes('support') || segments.includes('support')) return false;
+
   // Admin iç sayfaları (hub dışındaki stack)
   if (parts[0] === 'admin') return false;
 

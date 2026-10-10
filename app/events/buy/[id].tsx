@@ -57,7 +57,7 @@ function SelectableProductRow({
   onChangeQuantity: (next: number) => void;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(() => product.description.length > 0);
+  const [open, setOpen] = useState(false);
   const canExpand = product.description.length > 0;
   const maxQty = product.soldOut ? 0 : Math.max(0, product.remaining || 99);
   const canDecrease = quantity > 0;

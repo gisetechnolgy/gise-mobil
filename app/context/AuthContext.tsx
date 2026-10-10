@@ -36,6 +36,29 @@ interface AuthLoginResponse {
   user: GiseUserRecord;
 }
 
+export interface OtpStartResponse {
+  exists: boolean;
+  maskedEmail?: string;
+  resendAfterSeconds?: number;
+  expiresInSeconds?: number;
+  devOtpCode?: string;
+}
+
+export interface OtpEmailUnavailableResponse {
+  hasPhone: boolean;
+  maskedPhone?: string;
+}
+
+export interface OtpSendSmsResponse {
+  maskedPhone?: string;
+  resendAfterSeconds?: number;
+}
+
+export interface OtpResendResponse {
+  resendAfterSeconds?: number;
+  devOtpCode?: string;
+}
+
 interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
@@ -47,6 +70,12 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   loginWithSsoToken: (token: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
+  otpStart: (email: string) => Promise<OtpStartResponse>;
+  otpVerifyEmail: (email: string, code: string) => Promise<void>;
+  otpEmailUnavailable: (email: string) => Promise<OtpEmailUnavailableResponse>;
+  otpSendSms: (email: string) => Promise<OtpSendSmsResponse>;
+  otpVerifySms: (email: string, code: string) => Promise<void>;
+  otpResend: (email: string, channel: 'email' | 'sms') => Promise<OtpResendResponse>;
   logout: () => Promise<void>;
   setManagerSaleMode: (active: boolean) => Promise<void>;
 }
@@ -196,6 +225,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  /** Login 2 (OTP) — panelden webLoginMode=otp iken /auth/web/login kilitlidir. */
+  const otpStart = useCallback(
+    (email: string) =>
+      api.post<OtpStartResponse>('/auth/web/otp/start', { email }),
+    [],
+  );
+
+  const otpVerifyEmail = useCallback(
+    async (email: string, code: string): Promise<void> => {
+      const res = await api.post<AuthLoginResponse>(
+        '/auth/web/otp/verify-email',
+        { email, code },
+      );
+      await applyAuthResponse(res);
+      await refreshMe();
+    },
+    [applyAuthResponse, refreshMe],
+  );
+
+  const otpEmailUnavailable = useCallback(
+    (email: string) =>
+      api.post<OtpEmailUnavailableResponse>(
+        '/auth/web/otp/email-unavailable',
+        { email },
+      ),
+    [],
+  );
+
+  const otpSendSms = useCallback(
+    (email: string) =>
+      api.post<OtpSendSmsResponse>('/auth/web/otp/send-sms', { email }),
+    [],
+  );
+
+  const otpVerifySms = useCallback(
+    async (email: string, code: string): Promise<void> => {
+      const res = await api.post<AuthLoginResponse>(
+        '/auth/web/otp/verify-sms',
+        { email, code },
+      );
+      await applyAuthResponse(res);
+      await refreshMe();
+    },
+    [applyAuthResponse, refreshMe],
+  );
+
+  const otpResend = useCallback(
+    (email: string, channel: 'email' | 'sms') =>
+      api.post<OtpResendResponse>('/auth/web/otp/resend', { email, channel }),
+    [],
+  );
+
   const logout = useCallback(async (): Promise<void> => {
     await secureStorage.clearTokens();
     setUser(null);
@@ -222,6 +303,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       loginWithSsoToken,
       forgotPassword,
+      otpStart,
+      otpVerifyEmail,
+      otpEmailUnavailable,
+      otpSendSms,
+      otpVerifySms,
+      otpResend,
       logout,
       setManagerSaleMode,
     }),
@@ -235,6 +322,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       loginWithSsoToken,
       forgotPassword,
+      otpStart,
+      otpVerifyEmail,
+      otpEmailUnavailable,
+      otpSendSms,
+      otpVerifySms,
+      otpResend,
       logout,
       setManagerSaleMode,
     ],

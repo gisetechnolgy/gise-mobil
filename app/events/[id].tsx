@@ -41,7 +41,7 @@ import {
 } from "../../lib/events";
 import {
   fetchEventActivePriceInfo,
-  formatHomePriceAmount,
+  formatPriceRangeLabel,
   getActivePriceInfoFromEvent,
   type ActivePriceInfo,
 } from "../../lib/startingPrice";
@@ -103,7 +103,7 @@ export default function EventDetailScreen() {
       const silent = options?.silent ?? false;
       if (!silent) setLoading(true);
       try {
-        const data = await fetchEventById(id);
+        const data = await fetchEventById(id, { forListing: true });
         setEvent(data);
         void prefetchEventImages([data]);
         try {
@@ -276,17 +276,19 @@ export default function EventDetailScreen() {
                           }
                         />
                         <DetailMetaRow
-                          icon="business-outline"
-                          label={cityText}
-                        />
-                        <DetailMetaRow
                           icon="calendar-outline"
                           label={formatEventDate(event.startsAt)}
+                        />
+                        <DetailMetaRow
+                          icon="business-outline"
+                          label={cityText}
                         />
                         {priceInfo ? (
                           <DetailMetaRow
                             icon="ticket-outline"
-                            label={`${formatHomePriceAmount(priceInfo.minPrice)} ${t("heroPriceFromSuffix")}`}
+                            label={
+                              formatPriceRangeLabel(priceInfo, t("freeOfCharge")) ?? ""
+                            }
                           />
                         ) : null}
                       </View>

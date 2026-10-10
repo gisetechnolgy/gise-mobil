@@ -58,18 +58,31 @@ export async function fetchEventSessions(
       perPage: '50',
       page: '1',
     });
-    const res = await api.get<GiseListResponse<StockRow>>(
-      `/stocks?${qs.toString()}`,
-    );
+    const [res, eventRaw] = await Promise.all([
+      api.get<GiseListResponse<StockRow>>(`/stocks?${qs.toString()}`),
+      api
+        .get<Record<string, unknown>>(`/events/${encodeURIComponent(eventId)}`)
+        .catch(() => null),
+    ]);
     const now = Date.now();
+    const endMs = eventRaw?.enddate ? new Date(String(eventRaw.enddate)).getTime() : NaN;
+    const sellUntilEnd =
+      eventRaw?.sellUntilEnd === true && Number.isFinite(endMs) && endMs > now;
+    const todayNicosia = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Nicosia',
+    }).format(new Date(now));
     const sessions: EventSession[] = [];
     for (const row of res.data ?? []) {
       if (row.isActive === false) continue;
       const stockID = String(row.stockID ?? row.id ?? '').trim();
       if (!stockID || !rowHasProducts(row)) continue;
       const sessionMs = parseSessionMs(row.date, row.time);
-      // Start anında ve sonrasında bu seans listelenmez; diğer gelecek seanslar kalır
-      if (sessionMs != null && sessionMs <= now) continue;
+      // Start anında ve sonrasında bu seans listelenmez; diğer gelecek seanslar kalır.
+      // sellUntilEnd: etkinlik bitene kadar bugün başlamış seans da satılabilir.
+      if (sessionMs != null && sessionMs <= now) {
+        const sameDay = String(row.date ?? '').slice(0, 10) === todayNicosia;
+        if (!(sellUntilEnd && sameDay)) continue;
+      }
       sessions.push({
         stockRecordId: String(row.id ?? stockID),
         stockID,

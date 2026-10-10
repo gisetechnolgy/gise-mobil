@@ -79,7 +79,7 @@ async function resolveHeroEntry(
       event = await fetchGroupEventById(groupId);
       isGroup = !!event;
     } else if (eventId) {
-      event = await fetchEventById(String(eventId));
+      event = await fetchEventById(String(eventId), { forListing: true });
     }
 
     if (!event) return null;

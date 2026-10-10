@@ -31,7 +31,6 @@ import InAppVideoModal, {
 } from "../../components/InAppVideoModal";
 import { AppColors } from "../../constants/colors";
 import { PAGE_GUTTER } from "../../constants/homeSection";
-import { TAB_BAR_SCROLL_BOTTOM } from "../../constants/tabBar";
 import { useAuth } from "../context/AuthContext";
 import { useDrawer } from "../context/DrawerContext";
 import { useLocale } from "../context/_LocaleContext";
@@ -49,7 +48,6 @@ import type {
   HelpdeskMessage,
 } from "../../lib/helpdesk/types";
 import { useHelpdeskSupport } from "../../lib/helpdesk/useHelpdeskSupport";
-import { useIsTablet } from "../../lib/responsive";
 import { AppText as Text } from "@/components/ui/AppText";
 
 function faqVideoSource(item: HelpdeskFaqItem): InAppVideoSource | null {
@@ -67,7 +65,6 @@ export default function SupportScreen() {
   const { locale } = useLocale();
   const lang: HelpdeskLang = locale === "en" ? "en" : "tr";
   const insets = useSafeAreaInsets();
-  const isTablet = useIsTablet();
   const { openDrawer } = useDrawer();
   const { openNotifications, unreadCount } = useNotificationsPanel();
   const { user } = useAuth();
@@ -85,10 +82,7 @@ export default function SupportScreen() {
     if (source) setVideoSource(source);
   }, []);
 
-  const tabClearance = isTablet
-    ? TAB_BAR_SCROLL_BOTTOM.tablet
-    : TAB_BAR_SCROLL_BOTTOM.phone;
-  const bottomPad = Math.max(insets.bottom, 16) + tabClearance;
+  const bottomPad = Math.max(insets.bottom, 16);
 
   useEffect(() => {
     if (hd.view !== "chat") return;

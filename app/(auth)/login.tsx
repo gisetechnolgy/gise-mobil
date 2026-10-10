@@ -1,6 +1,6 @@
 import { Link, router, useLocalSearchParams, type Href } from "expo-router";
 import Constants from "expo-constants";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -10,10 +10,12 @@ import {
 } from "react-native";
 import AuthScreenLayout from "../components/AuthScreenLayout";
 import LanguageToggle from "../components/LanguageToggle";
+import OtpLoginWizard from "../components/OtpLoginWizard";
 import { useAuth } from "../context/AuthContext";
 import { useTranslation } from "../context/_LocaleContext";
 import { AppColors } from "../../constants/colors";
 import { ApiError } from "../../lib/api";
+import { getLoginMode, type WebLoginMode } from "../../lib/loginSettings";
 import { AppText as Text } from "@/components/ui/AppText";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -48,6 +50,17 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loginMode, setLoginMode] = useState<WebLoginMode | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getLoginMode().then((mode) => {
+      if (!cancelled) setLoginMode(mode);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const onSubmit = async () => {
     if (submitting) return;
@@ -68,6 +81,10 @@ export default function LoginScreen() {
       // sessizce verify ekranına yönlendir (kupon disiplini: verify zorunlu).
       if (e instanceof ApiError && e.status === 403) {
         const data = e.data as { code?: string; userId?: string } | undefined;
+        if (data?.code === "login-mode-disabled") {
+          setLoginMode("otp");
+          return;
+        }
         if (data?.code === "EMAIL_NOT_VERIFIED" && data.userId) {
           router.replace({
             pathname: "/(auth)/verify-email",
@@ -102,6 +119,13 @@ export default function LoginScreen() {
       rightHeaderAction={<LanguageToggle />}
       contentStyle={styles.content}
     >
+      {loginMode === null ? (
+        <View style={styles.formBlock}>
+          <ActivityIndicator color="#fff" />
+        </View>
+      ) : loginMode === "otp" ? (
+        <OtpLoginWizard redirectPath={redirectPath} />
+      ) : (
       <View style={styles.formBlock}>
         <TextInput
           value={email}
@@ -156,13 +180,16 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </Link>
       </View>
+      )}
 
       <View style={styles.bottomBlock}>
-        <Link href={"/(auth)/register" as Href} asChild>
-          <TouchableOpacity style={styles.outlineBtn}>
-            <Text style={styles.outlineBtnText}>{t("signupPrompt")}</Text>
-          </TouchableOpacity>
-        </Link>
+        {loginMode === "legacy" ? (
+          <Link href={"/(auth)/register" as Href} asChild>
+            <TouchableOpacity style={styles.outlineBtn}>
+              <Text style={styles.outlineBtnText}>{t("signupPrompt")}</Text>
+            </TouchableOpacity>
+          </Link>
+        ) : null}
 
         <TouchableOpacity
           style={styles.guestBtn}
