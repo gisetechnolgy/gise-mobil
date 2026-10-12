@@ -3,7 +3,6 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Linking,
   ScrollView,
   Share,
   StyleSheet,
@@ -51,9 +50,17 @@ import { useAuth } from "../context/AuthContext";
 import { useTranslation } from "../context/_LocaleContext";
 import { RemoteCardImage } from "../components/_RemoteCardImage";
 import ClampedHtmlSection from "../components/detail/ClampedHtmlSection";
-import DetailActionButton, {
-  DetailActionsRow,
-} from "../components/detail/DetailActionButton";
+import { DetailIconButton } from "../components/detail/DetailActionButton";
+import MapAppPickerSheet from "../components/detail/MapAppPickerSheet";
+import MediaSheet, {
+  buildMediaImages,
+  hasMedia,
+} from "../components/detail/MediaSheet";
+import {
+  getInstalledMapApps,
+  openMapApp,
+  type MapAppOption,
+} from "../../lib/mapApps";
 import DetailCard from "../components/detail/DetailCard";
 import DetailMetaRow from "../components/detail/DetailMetaRow";
 import HomeEventHorizontalCard from "../components/detail/HomeEventHorizontalCard";
@@ -84,6 +91,9 @@ export default function VenueDetailScreen() {
     {},
   );
   const [layoutModal, setLayoutModal] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [mapApps, setMapApps] = useState<MapAppOption[]>([]);
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
 
   const load = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -139,6 +149,11 @@ export default function VenueDetailScreen() {
     resolveRemoteImageUrl(venue?.logoUrl) ||
     resolveRemoteImageUrl(venue?.bannerUrl);
   const layoutUrl = resolveRemoteImageUrl(venue?.layoutUrl);
+  const mediaImages = buildMediaImages([
+    { uri: resolveRemoteImageUrl(venue?.bannerUrl), label: venue?.name || t("media") },
+    { uri: resolveRemoteImageUrl(venue?.logoUrl), label: "Logo" },
+    { uri: layoutUrl, label: t("mediaLayout") },
+  ]);
 
   const categoryLabel = (venue?.categories || [])
     .map((cid) => categoryLabels[cid])
@@ -147,18 +162,35 @@ export default function VenueDetailScreen() {
   const cityLabel = formatCityLabel(venue?.city);
   const addressLabel = [cityLabel, venue?.address].filter(Boolean).join(", ");
 
+  const coords = (() => {
+    if (!venue?.coordinates) return null;
+    const [lat, lng] = venue.coordinates.split(",").map((p) => p.trim());
+    if (!lat || !lng || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
+      return null;
+    }
+    return { lat, lng };
+  })();
+
   const mapsHref = (() => {
-    if (venue?.coordinates) {
-      const [lat, lng] = venue.coordinates.split(",").map((p) => p.trim());
-      if (lat && lng) {
-        return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-      }
+    if (coords) {
+      return `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`;
     }
     if (addressLabel) {
       return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressLabel)}`;
     }
     return null;
   })();
+
+  const openNativeMaps = async () => {
+    if (!coords) return;
+    setMapApps(await getInstalledMapApps(coords.lat, coords.lng));
+    setMapPickerOpen(true);
+  };
+
+  const onPickMapApp = (app: MapAppOption) => {
+    setMapPickerOpen(false);
+    if (coords) void openMapApp(app, coords.lat, coords.lng);
+  };
 
   const onShare = async () => {
     if (!venue) return;
@@ -233,46 +265,44 @@ export default function VenueDetailScreen() {
                           label={venue.phone || ""}
                           href={venue.phone ? `tel:${venue.phone}` : null}
                         />
+                        <View style={styles.metaActions}>
+                          {coords ? (
+                            <DetailIconButton
+                              icon="navigate-outline"
+                              label={t("goToLocation")}
+                              onPress={() => void openNativeMaps()}
+                            />
+                          ) : null}
+                          <DetailIconButton
+                            icon="heart-outline"
+                            activeIcon="heart"
+                            active={followed}
+                            label={followed ? t("followingBtn") : t("follow")}
+                            onPress={() => {
+                              if (!user?.id) {
+                                router.push("/(auth)/login");
+                                return;
+                              }
+                              void toggleVenueFollow(user.id, venue.id).then(
+                                setFollowed,
+                              );
+                            }}
+                          />
+                          {hasMedia(venue.youtube, mediaImages) ? (
+                            <DetailIconButton
+                              icon="play-circle-outline"
+                              label={t("media")}
+                              onPress={() => setMediaOpen(true)}
+                            />
+                          ) : null}
+                          <DetailIconButton
+                            icon="share-social-outline"
+                            label={t("share")}
+                            onPress={() => void onShare()}
+                          />
+                        </View>
                       </View>
                     </View>
-                    <DetailActionsRow>
-                      <DetailActionButton
-                        icon={followed ? "heart" : "heart-outline"}
-                        label={followed ? t("followingBtn") : t("follow")}
-                        onPress={() => {
-                          if (!user?.id) {
-                            router.push("/(auth)/login");
-                            return;
-                          }
-                          void toggleVenueFollow(user.id, venue.id).then(
-                            setFollowed,
-                          );
-                        }}
-                      />
-                      {layoutUrl || venue.youtube ? (
-                        <DetailActionButton
-                          icon="play-circle-outline"
-                          label={t("media")}
-                          onPress={() => {
-                            if (venue.youtube && !layoutUrl) {
-                              void Linking.openURL(
-                                venue.youtube.startsWith("http")
-                                  ? venue.youtube
-                                  : `https://www.youtube.com/watch?v=${venue.youtube}`,
-                              );
-                              return;
-                            }
-                            if (layoutUrl) setLayoutModal(true);
-                          }}
-                        />
-                      ) : null}
-                      <DetailActionButton
-                        icon="share-outline"
-                        label={t("share")}
-                        onPress={() => void onShare()}
-                        flex={0.7}
-                      />
-                    </DetailActionsRow>
                   </DetailCard>
 
                   {venue.about?.trim() ? (
@@ -389,6 +419,18 @@ export default function VenueDetailScreen() {
               </View>
             </View>
           ) : null}
+          <MediaSheet
+            visible={mediaOpen}
+            onClose={() => setMediaOpen(false)}
+            youtube={venue?.youtube}
+            images={mediaImages}
+          />
+          <MapAppPickerSheet
+            visible={mapPickerOpen}
+            apps={mapApps}
+            onSelect={onPickMapApp}
+            onClose={() => setMapPickerOpen(false)}
+          />
         </View>
       )}
     </SafeAreaView>
@@ -418,6 +460,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     paddingTop: 2,
+  },
+  metaActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 8,
   },
   cardTitle: {
     marginBottom: 10,

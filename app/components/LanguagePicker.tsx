@@ -47,7 +47,12 @@ function navControlScale(screenWidth: number) {
 }
 
 /** Web LanguagePicker mobileNav — ölçekli TR/EN select */
-export default function LanguagePicker() {
+export default function LanguagePicker({
+  transparent = false,
+}: {
+  /** Koyu arka plan (login): kutu/çerçeve yok, sadece beyaz yazı */
+  transparent?: boolean;
+} = {}) {
   const { locale, setLocale } = useLocale();
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
@@ -94,27 +99,38 @@ export default function LanguagePicker() {
         ref={rootRef}
         collapsable={false}
         style={{
-          width: scale.size,
+          width: transparent ? undefined : scale.size,
           height: scale.size,
           flexShrink: 0,
         }}
       >
         <TouchableOpacity
           onPress={openMenu}
-          style={[
-            styles.trigger,
-            {
-              width: scale.size,
-              height: scale.size,
-              borderRadius: scale.radius,
-            },
-          ]}
+          style={
+            transparent
+              ? [styles.transparentTrigger, { height: scale.size }]
+              : [
+                  styles.trigger,
+                  {
+                    width: scale.size,
+                    height: scale.size,
+                    borderRadius: scale.radius,
+                  },
+                ]
+          }
+          hitSlop={transparent ? { top: 8, bottom: 8, left: 12, right: 12 } : undefined}
           accessibilityRole="button"
           accessibilityLabel={t("selectLanguage")}
           accessibilityState={{ expanded: open }}
           activeOpacity={0.85}
         >
-          <Text style={[styles.label, { fontSize: scale.fontSize }]}>
+          <Text
+            style={[
+              styles.label,
+              { fontSize: scale.fontSize },
+              transparent && styles.transparentLabel,
+            ]}
+          >
             {current.label}
           </Text>
         </TouchableOpacity>
@@ -184,10 +200,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#FFFFFF",
   },
+  transparentTrigger: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
   label: {
     fontFamily: "PoppinsBold",
     color: "#2D2D2D",
     letterSpacing: 0.5,
+  },
+  transparentLabel: {
+    color: "#FFFFFF",
   },
   modalRoot: {
     flex: 1,

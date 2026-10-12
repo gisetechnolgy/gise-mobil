@@ -31,7 +31,7 @@ export const FOOTER_MENU_COLUMNS: FooterMenuColumn[] = [
     items: [
       {
         id: 'venues',
-        label: L('Mekanlar', 'Venues'),
+        label: L('Mekânlar', 'Venues'),
         action: { type: 'route', href: '/(tabs)/venues' },
       },
       {

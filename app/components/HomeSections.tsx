@@ -29,7 +29,11 @@ import {
   homeSeeAllStyle,
 } from "../../constants/homeTypography";
 import { EventItem } from "../../lib/events";
-import { fetchHomeSections, type HomeSection } from "../../lib/homeSections";
+import {
+  fetchHomeSections,
+  getCachedHomeSections,
+  type HomeSection,
+} from "../../lib/homeSections";
 import type {
   SectionLoadingProps,
   SectionReloadHandle,
@@ -67,8 +71,10 @@ const HomeSections = forwardRef<SectionReloadHandle, SectionLoadingProps>(
     const { width: screenWidth } = useWindowDimensions();
     const chrome = getHomeSectionChrome(screenWidth);
     const cardWidth = getHomeEventCardWidth(screenWidth, isTablet);
-    const [sections, setSections] = useState<HomeSection[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [sections, setSections] = useState<HomeSection[]>(
+      () => getCachedHomeSections() ?? [],
+    );
+    const [loading, setLoading] = useState(() => !getCachedHomeSections()?.length);
     const [useFallback, setUseFallback] = useState(false);
     const [fallbackLoading, setFallbackLoading] = useState(true);
     /** Mobil varsayılan: 1. tasarım (büyük / grid) */
@@ -98,8 +104,10 @@ const HomeSections = forwardRef<SectionReloadHandle, SectionLoadingProps>(
             void prefetchEventImages(data.flatMap((s) => s.events));
           }
         } catch {
-          setUseFallback(true);
-          setSections([]);
+          if (!silent) {
+            setUseFallback(true);
+            setSections([]);
+          }
         } finally {
           if (!silent) setLoading(false);
         }
@@ -116,7 +124,7 @@ const HomeSections = forwardRef<SectionReloadHandle, SectionLoadingProps>(
     );
 
     useEffect(() => {
-      void load();
+      void load({ silent: !!getCachedHomeSections()?.length });
     }, [load]);
 
     useEffect(() => {

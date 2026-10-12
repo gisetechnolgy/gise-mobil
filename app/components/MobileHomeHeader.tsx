@@ -28,7 +28,7 @@ import { AppText as Text } from "@/components/ui/AppText";
 import { SiteIcon } from "@/components/icons/SiteIcon";
 import CategoriesDrawer from "./CategoriesDrawer";
 import Hamburger from "./HamburgerIcon";
-import LanguagePicker, { getNavControlScale } from "./LanguagePicker";
+import { getNavControlScale } from "./LanguagePicker";
 
 type Props = {
   onMenuPress?: () => void;
@@ -192,8 +192,6 @@ export default function MobileHomeHeader({
           />
         </TouchableOpacity>
         <View style={styles.actions}>
-          <LanguagePicker />
-
           <TouchableOpacity
             onPress={openCategories}
             style={actionBtnStyle}

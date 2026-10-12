@@ -123,7 +123,7 @@ export function getRoleLabel(crole?: string | null): string | null {
     case CROLES.CUSTOMER:
       return 'Müşteri';
     case CROLES.VENUE_MANAGER:
-      return 'Mekan Yöneticisi';
+      return 'Mekân Yöneticisi';
     case CROLES.ORGANISATION_COMPANY_MANAGER:
       return 'Organizasyon Yöneticisi';
     case CROLES.SALE_POINT_MANAGER:

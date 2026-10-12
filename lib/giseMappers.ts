@@ -112,6 +112,14 @@ function hasActiveSpecialOffer(raw: Record<string, unknown>): boolean {
   });
 }
 
+/** Panel rules.couples: 1 = kural yok, 2 = eşli katılım; boş ([] / "") = seçilmemiş */
+function parseCouplesRule(raw: unknown): number | null {
+  const value = Array.isArray(raw) ? (raw.length === 1 ? raw[0] : null) : raw;
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return n === 1 || n === 2 ? n : null;
+}
+
 export function mapEventRecord(raw: Record<string, unknown>) {
   const id = String(raw.id ?? '');
   const banner = pickImageSrc(raw.banner) ?? pickImageSrc(raw.badge);
@@ -156,13 +164,11 @@ export function mapEventRecord(raw: Record<string, unknown>) {
     eventUrl: id ? `${GISE_WEB_URL}/etkinlikler/${id}` : undefined,
     rules: rulesRaw
       ? {
-          age: rulesRaw.age != null ? String(rulesRaw.age) : null,
-          couples:
-            typeof rulesRaw.couples === 'number'
-              ? rulesRaw.couples
-              : Array.isArray(rulesRaw.couples)
-                ? rulesRaw.couples.length
-                : null,
+          age:
+            rulesRaw.age != null && String(rulesRaw.age).trim()
+              ? String(rulesRaw.age).trim()
+              : null,
+          couples: parseCouplesRule(rulesRaw.couples),
           dress: dressList,
         }
       : null,

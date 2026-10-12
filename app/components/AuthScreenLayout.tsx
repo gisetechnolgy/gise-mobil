@@ -30,6 +30,8 @@ interface Props {
   contentStyle?: StyleProp<ViewStyle>;
   /** Sağ üstte gösterilecek aksiyon (örn. "EN" dil seçici). Yoksa hiçbir şey çizilmez. */
   rightHeaderAction?: React.ReactNode;
+  /** Logo altındaki slogan (örn. "Bir Tık Uzağında") gizlensin — web Login 2'de yok */
+  hideSlogan?: boolean;
 }
 
 /** Logo / slogan ile form arası (≈1–2 tık) */
@@ -51,6 +53,7 @@ export default function AuthScreenLayout({
   hideHeader,
   contentStyle,
   rightHeaderAction,
+  hideSlogan,
 }: Props) {
   const { height: windowHeight } = useWindowDimensions();
   const { branding } = useBranding();
@@ -91,7 +94,7 @@ export default function AuthScreenLayout({
             {showBrandHeader ? (
               <View style={{ height: topSpacerHeight }} />
             ) : null}
-            {showBrandHeader ? <BrandHeader /> : null}
+            {showBrandHeader ? <BrandHeader hideSlogan={hideSlogan} /> : null}
             <View style={[styles.authContent, contentStyle]}>{children}</View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -100,7 +103,7 @@ export default function AuthScreenLayout({
   );
 }
 
-function BrandHeader() {
+function BrandHeader({ hideSlogan }: { hideSlogan?: boolean }) {
   const isTablet = useIsTablet();
   const { branding } = useBranding();
   const { t } = useTranslation();
@@ -120,13 +123,15 @@ function BrandHeader() {
           {
             width: logoWidth,
             height: logoHeight,
-            marginBottom: GAP_LOGO_TO_SLOGAN,
+            marginBottom: hideSlogan ? GAP_BEFORE_FORM : GAP_LOGO_TO_SLOGAN,
           },
         ]}
       />
-      <Text style={[styles.slogan, { marginBottom: GAP_BEFORE_FORM }]}>
-        {slogan}
-      </Text>
+      {hideSlogan ? null : (
+        <Text style={[styles.slogan, { marginBottom: GAP_BEFORE_FORM }]}>
+          {slogan}
+        </Text>
+      )}
     </View>
   );
 }

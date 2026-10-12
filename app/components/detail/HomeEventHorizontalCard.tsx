@@ -17,6 +17,11 @@ import { formatCityLabel } from "../../../lib/cities";
 import { EventCardImage } from "../_EventCardImage";
 import { AppText as Text } from "@/components/ui/AppText";
 
+/** Fiyat + Satın Al aynı satır yüksekliği → dikeyde aynı hiza */
+const FOOTER_LINE_HEIGHT = Math.round(
+  Math.max(LIST_CARD.priceSize, LIST_CARD.buySize) * 1.3,
+);
+
 type Props = {
   event: EventItem & {
     bannerCardUrl?: string | null;
@@ -106,7 +111,8 @@ export default function HomeEventHorizontalCard({
       >
         <Text
           style={[styles.title, { fontSize: LIST_CARD.titleSize }]}
-          numberOfLines={2}
+          numberOfLines={1}
+          ellipsizeMode="tail"
         >
           {event.title}
         </Text>
@@ -131,7 +137,13 @@ export default function HomeEventHorizontalCard({
             <View style={styles.priceLine}>
               <View style={styles.pricePill}>
                 <Text
-                  style={[styles.price, { fontSize: LIST_CARD.priceSize }]}
+                  style={[
+                    styles.price,
+                    {
+                      fontSize: LIST_CARD.priceSize,
+                      lineHeight: FOOTER_LINE_HEIGHT,
+                    },
+                  ]}
                   numberOfLines={1}
                 >
                   {priceLabel}
@@ -141,9 +153,20 @@ export default function HomeEventHorizontalCard({
           ) : (
             <View style={{ flex: 1 }} />
           )}
-          <Text style={[styles.buy, { fontSize: LIST_CARD.buySize }]}>
-            {t("buy")}
-          </Text>
+          <View style={styles.buyBox}>
+            <Text
+              style={[
+                styles.buy,
+                {
+                  fontSize: LIST_CARD.buySize,
+                  lineHeight: FOOTER_LINE_HEIGHT,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {t("buy")}
+            </Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -184,7 +207,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 8,
     marginTop: "auto",
   },
@@ -204,10 +227,19 @@ const styles = StyleSheet.create({
   price: {
     fontFamily: "PoppinsBold",
     color: AppColors.heading,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+  /** pricePill ile aynı dikey padding → iki kutu aynı yükseklikte */
+  buyBox: {
+    flexShrink: 0,
+    paddingVertical: 5,
+    justifyContent: "center",
   },
   buy: {
     fontFamily: "PoppinsBold",
     color: AppColors.accent,
-    flexShrink: 0,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
 });

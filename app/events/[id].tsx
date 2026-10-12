@@ -30,7 +30,6 @@ import { GISE_WEB_URL } from "../../lib/appConfig";
 import { appRefreshControl } from "../../lib/appRefreshControl";
 import { formatCityLabel } from "../../lib/cities";
 import { formatDressRuleText } from "../../lib/dressCodes";
-import { fetchCategories } from "../../lib/definitions";
 import { shouldDenyManagerEventAccess } from "../../lib/eventAccess";
 import {
   EventItem,
@@ -52,28 +51,29 @@ import {
   prefetchEventImages,
 } from "../components/_EventCardImage";
 import ClampedHtmlSection from "../components/detail/ClampedHtmlSection";
-import DetailActionButton, {
-  DetailActionsRow,
-} from "../components/detail/DetailActionButton";
+import { DetailIconButton } from "../components/detail/DetailActionButton";
+import {
+  isEventFavourite,
+  toggleEventFavourite,
+} from "../../lib/favouriteEvents";
 import DetailCard from "../components/detail/DetailCard";
 import DetailMetaRow from "../components/detail/DetailMetaRow";
 import ImmersiveDetailHero from "../components/detail/ImmersiveDetailHero";
 import StickyCtaBar from "../components/detail/StickyCtaBar";
 import { AppText as Text } from "@/components/ui/AppText";
 
-function getEventCategoryLabel(
-  event: EventItem,
-  categoryLabels: Record<string, string>,
-): string {
-  if (event.category && categoryLabels[event.category]) {
-    return categoryLabels[event.category];
-  }
-  return event.categoryLabel?.trim() || event.category?.trim() || "";
-}
-
-function ChipRow({ title, subtitle }: { title: string; subtitle: string }) {
+function ChipRow({
+  title,
+  subtitle,
+  fill,
+}: {
+  title: string;
+  subtitle: string;
+  /** Yan yana satırda eş yükseklik */
+  fill?: boolean;
+}) {
   return (
-    <View style={styles.chip}>
+    <View style={[styles.chip, fill && { flex: 1 }]}>
       <Text style={styles.chipTitle}>{title}</Text>
       <Text style={styles.chipSub}>{subtitle}</Text>
     </View>
@@ -92,10 +92,7 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [layoutModal, setLayoutModal] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>(
-    {},
-  );
+  const [detailsOpen, setDetailsOpen] = useState(true);
 
   const loadEvent = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -129,14 +126,6 @@ export default function EventDetailScreen() {
   }, [loadEvent, locale]);
 
   useEffect(() => {
-    void fetchCategories().then((categories) => {
-      setCategoryLabels(
-        Object.fromEntries(categories.map((c) => [c.value, c.label])),
-      );
-    });
-  }, [locale]);
-
-  useEffect(() => {
     if (!event || !user) return;
     if (
       shouldDenyManagerEventAccess(user, {
@@ -151,13 +140,7 @@ export default function EventDetailScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [, categories] = await Promise.all([
-        loadEvent({ silent: true }),
-        fetchCategories(true),
-      ]);
-      setCategoryLabels(
-        Object.fromEntries(categories.map((c) => [c.value, c.label])),
-      );
+      await loadEvent({ silent: true });
     } finally {
       setRefreshing(false);
     }
@@ -172,6 +155,34 @@ export default function EventDetailScreen() {
     router.push(`/events/buy/${event.id}` as import("expo-router").Href);
   };
 
+  const [isFav, setIsFav] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id || !id) {
+      setIsFav(false);
+      return;
+    }
+    let alive = true;
+    void isEventFavourite(user.id, id).then((v) => {
+      if (alive) setIsFav(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [user?.id, id]);
+
+  const onToggleFavourite = () => {
+    if (!user?.id) {
+      router.push("/(auth)/login");
+      return;
+    }
+    if (!id) return;
+    setIsFav((v) => !v);
+    void toggleEventFavourite(user.id, id)
+      .then(setIsFav)
+      .catch(() => setIsFav((v) => !v));
+  };
+
   const onShare = async () => {
     if (!event) return;
     const url = event.eventUrl || `${GISE_WEB_URL}/etkinlikler/${event.id}`;
@@ -183,16 +194,18 @@ export default function EventDetailScreen() {
   };
 
   const cityText = formatCityLabel(event?.city);
-  const categoryLabel = event
-    ? getEventCategoryLabel(event, categoryLabels)
-    : "";
   const dressRuleText = formatDressRuleText(event?.rules?.dress, locale);
   const detailsPlain = event ? htmlToPlainText(event.details).trim() : "";
+  const rawAge = event?.rules?.age?.trim() ?? "";
+  const ageRuleText = /^\d+$/.test(rawAge) ? `${rawAge}+` : rawAge;
+  const couplesRuleText =
+    event?.rules?.couples === 2
+      ? t("coupleRuleValue")
+      : event?.rules?.couples === 1
+        ? t("coupleRuleNone")
+        : "";
   const hasRules =
-    !!event?.rules?.age ||
-    (event?.rules?.couples != null && event.rules.couples !== undefined) ||
-    !!dressRuleText ||
-    !!detailsPlain;
+    !!ageRuleText || !!couplesRuleText || !!dressRuleText || !!detailsPlain;
 
   return (
     <SafeAreaView edges={["left", "right"]} style={styles.page}>
@@ -260,12 +273,10 @@ export default function EventDetailScreen() {
                       </View>
                       <View style={styles.summaryMeta}>
                         <DetailMetaRow
-                          icon="pricetag-outline"
-                          label={categoryLabel}
-                        />
-                        <DetailMetaRow
                           icon="location-outline"
-                          label={event.venueName || ""}
+                          label={[event.venueName?.trim(), cityText]
+                            .filter(Boolean)
+                            .join(", ")}
                           onPress={
                             event.venueId
                               ? () =>
@@ -279,10 +290,6 @@ export default function EventDetailScreen() {
                           icon="calendar-outline"
                           label={formatEventDate(event.startsAt)}
                         />
-                        <DetailMetaRow
-                          icon="business-outline"
-                          label={cityText}
-                        />
                         {priceInfo ? (
                           <DetailMetaRow
                             icon="ticket-outline"
@@ -291,27 +298,28 @@ export default function EventDetailScreen() {
                             }
                           />
                         ) : null}
+                        {!user?.isSaleMode ? (
+                          <View style={styles.metaActions}>
+                            <DetailIconButton
+                              icon="heart-outline"
+                              activeIcon="heart"
+                              active={isFav}
+                              label={
+                                isFav
+                                  ? t("removeFromFavourites")
+                                  : t("addToFavourites")
+                              }
+                              onPress={onToggleFavourite}
+                            />
+                            <DetailIconButton
+                              icon="share-social-outline"
+                              label={t("share")}
+                              onPress={() => void onShare()}
+                            />
+                          </View>
+                        ) : null}
                       </View>
                     </View>
-                    {!user?.isSaleMode ? (
-                      <DetailActionsRow>
-                        <DetailActionButton
-                          icon="heart-outline"
-                          label={t("addToFavourites")}
-                          onPress={() => {
-                            if (!user) {
-                              router.push("/(auth)/login");
-                            }
-                          }}
-                        />
-                        <DetailActionButton
-                          icon="share-outline"
-                          label={t("share")}
-                          onPress={() => void onShare()}
-                          flex={0.7}
-                        />
-                      </DetailActionsRow>
-                    ) : null}
                   </DetailCard>
 
                   {htmlToPlainText(event.description).trim() ? (
@@ -357,18 +365,33 @@ export default function EventDetailScreen() {
                         <Text style={styles.cardTitle}>{t("thingsToKnow")}</Text>
                       ) : null}
                       <View style={{ gap: 8, marginTop: !detailsPlain ? 4 : 0 }}>
-                        {event.rules?.age ? (
-                          <ChipRow
-                            title={t("ageRule")}
-                            subtitle={event.rules.age}
-                          />
-                        ) : null}
-                        {event.rules?.couples != null &&
-                        event.rules.couples !== undefined ? (
-                          <ChipRow
-                            title={t("coupleRule")}
-                            subtitle={t("coupleRuleValue")}
-                          />
+                        {ageRuleText || couplesRuleText ? (
+                          <View style={styles.chipPair}>
+                            {ageRuleText ? (
+                              <View
+                                style={
+                                  couplesRuleText
+                                    ? styles.chipPairAge
+                                    : styles.chipPairGrow
+                                }
+                              >
+                                <ChipRow
+                                  title={t("ageRule")}
+                                  subtitle={ageRuleText}
+                                  fill
+                                />
+                              </View>
+                            ) : null}
+                            {couplesRuleText ? (
+                              <View style={styles.chipPairGrow}>
+                                <ChipRow
+                                  title={t("coupleRule")}
+                                  subtitle={couplesRuleText}
+                                  fill
+                                />
+                              </View>
+                            ) : null}
+                          </View>
                         ) : null}
                         {dressRuleText ? (
                           <ChipRow
@@ -483,6 +506,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 2,
   },
+  metaActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 8,
+  },
   cardTitle: {
     marginBottom: 10,
     fontFamily: "PoppinsBold",
@@ -515,6 +544,18 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     paddingVertical: 5,
     paddingHorizontal: 10,
+  },
+  chipPair: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 8,
+  },
+  chipPairAge: {
+    flexShrink: 0,
+  },
+  chipPairGrow: {
+    flex: 1,
+    minWidth: 0,
   },
   chipTitle: {
     fontFamily: "PoppinsBold",

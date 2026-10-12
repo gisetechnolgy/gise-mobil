@@ -303,7 +303,7 @@ export default function EventsFilterScreen() {
       case "city":
         return "Şehir";
       case "venue":
-        return "Mekan";
+        return "Mekân";
       case "date":
         return "Tarih";
       default:
@@ -403,7 +403,7 @@ export default function EventsFilterScreen() {
             />
 
             <FilterField
-              label="Mekan"
+              label="Mekân"
               value={venueLabel}
               placeholder="Tümü"
               onPress={() => openPicker("venue")}

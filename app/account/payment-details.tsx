@@ -238,7 +238,7 @@ export default function PaymentDetailsScreen() {
                   <Text style={styles.modalLine}>
                     {t("coupon")}: {selected.couponCode}
                     {selected.couponDiscount
-                      ? ` - ${selected.couponDiscount} TL`
+                      ? ` - ${selected.couponDiscount} ₺`
                       : ""}
                   </Text>
                 ) : null}

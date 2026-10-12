@@ -153,7 +153,6 @@ export default function CompaniesScreen() {
         <Text style={[styles.pageTitle, isTablet && styles.pageTitleTablet]}>
           {t("organisers")}
         </Text>
-        <View style={[styles.backBtn, isTablet && styles.backBtnTablet]} />
       </View>
 
       <View style={styles.toolbar}>
@@ -319,12 +318,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: AppColors.background,
   },
+  /** Etkinlikler sayfası başlığı ile aynı: sola yaslı */
   header: {
     minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
+    justifyContent: "flex-start",
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingTop: 10,
     paddingBottom: 6,
   },
   headerTablet: {
@@ -344,7 +346,7 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     color: "#000000",
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: "PoppinsSemiBold",
   },
   pageTitleTablet: {

@@ -83,9 +83,28 @@ async function buildHeaders(auth: boolean): Promise<Record<string, string>> {
   return headers;
 }
 
+const inFlightGets = new Map<string, Promise<unknown>>();
+
 export async function apiRequest<T = unknown>(
   path: string,
   options: RequestOptions = {},
+): Promise<T> {
+  if ((options.method ?? 'GET') !== 'GET') {
+    return performRequest<T>(path, options);
+  }
+  const key = `${options.auth ? 'a' : 'p'}|${path}`;
+  const existing = inFlightGets.get(key);
+  if (existing) return existing as Promise<T>;
+  const promise = performRequest<T>(path, options).finally(() => {
+    inFlightGets.delete(key);
+  });
+  inFlightGets.set(key, promise);
+  return promise;
+}
+
+async function performRequest<T>(
+  path: string,
+  options: RequestOptions,
 ): Promise<T> {
   const {
     method = 'GET',

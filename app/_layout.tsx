@@ -56,18 +56,16 @@ export default function RootLayout() {
       /* Expo Go / dev: native splash yok */
     }
 
-    try {
-      const [requirement] = await Promise.all([
-        resolveMandatoryUpdate(),
-        applyRadioAudioSession().catch((e) => {
-          console.warn('[audioSession] bootstrap failed:', e);
-        }),
-      ]);
-      setUpdateRequirement(requirement);
-    } catch (e) {
-      console.warn('[prepareApp] bootstrap failed:', e);
-      setUpdateRequirement({ kind: 'none' });
-    }
+    // Sürüm kontrolü ve audio session ilk render'ı bekletmez; bakım / zorunlu
+    // güncelleme sonucu gelince ForceUpdateScreen üstte açılır.
+    void resolveMandatoryUpdate()
+      .then(setUpdateRequirement)
+      .catch((e) => {
+        console.warn('[prepareApp] version check failed:', e);
+      });
+    void applyRadioAudioSession().catch((e) => {
+      console.warn('[audioSession] bootstrap failed:', e);
+    });
   }, []);
 
   useEffect(() => {
@@ -149,11 +147,16 @@ export default function RootLayout() {
           };
           const style = (element.props as { style?: StyleProp<TextStyle> }).style;
           const family = resolvePoppinsFamily(style);
+          // iOS: letterSpacing tanımsızken placeholder harfleri açılıyor ("K a r t …")
+          const letterSpacing = StyleSheet.flatten(style)?.letterSpacing ?? 0;
           return {
             ...element,
             props: {
               ...element.props,
-              style: [style, { fontFamily: family, fontWeight: 'normal' as const }],
+              style: [
+                style,
+                { fontFamily: family, fontWeight: 'normal' as const, letterSpacing },
+              ],
             },
           };
         };

@@ -122,5 +122,5 @@ export async function updateEventAdminFlags(
 export function formatEventRevenue(amount: number): string {
   return new Intl.NumberFormat('tr-TR', {
     maximumFractionDigits: 0,
-  }).format(amount) + ' TL';
+  }).format(amount) + ' ₺';
 }

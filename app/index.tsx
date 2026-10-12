@@ -4,8 +4,8 @@ import { useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 
 /**
- * Uygulama açılış route'u — web gibi misafir gezinmeye izin verir.
- * Giriş yapmış kullanıcılar da aynı ana ekrana gider.
+ * Uygulama açılış route'u — giriş yoksa önce login; login'deki
+ * "Misafir olarak devam et" ana ekrana geçirir.
  */
 export default function IndexRoute() {
   const { isLoading, user } = useAuth();
@@ -21,7 +21,11 @@ export default function IndexRoute() {
     return null;
   }
 
-  if (user?.isSaleMode) {
+  if (!user) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  if (user.isSaleMode) {
     return <Redirect href="/(admin-tabs)/events" />;
   }
 

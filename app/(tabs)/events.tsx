@@ -63,12 +63,41 @@ const MOBILE_CAT_VISIBLE = 3.5;
 const MOBILE_CAT_ICON = 30;
 
 type EventsListItem = EventItem & { priceInfo?: ActivePriceInfo | null };
-type SortKey = "dateAsc" | "nameAsc" | "nameDesc";
+type SortKey = "dateAsc" | "priceAsc" | "priceDesc" | "nameAsc" | "nameDesc";
 type FilterPickerKey = "venue" | "date" | "city" | null;
 
-function sortEventsList(events: EventItem[], sortKey: SortKey): EventItem[] {
+/** Web EVENTS_PAGE_SORT_OPTIONS ile aynı sıra */
+const SORT_OPTIONS = [
+  ["dateAsc", "sortByDate"],
+  ["priceAsc", "sortByPriceAsc"],
+  ["priceDesc", "sortByPriceDesc"],
+  ["nameAsc", "sortByNameAsc"],
+  ["nameDesc", "sortByNameDesc"],
+] as const;
+
+function startingPriceOf(event: EventsListItem): number | null {
+  const p = event.priceInfo?.minPrice;
+  return typeof p === "number" && Number.isFinite(p) ? p : null;
+}
+
+function sortEventsList(
+  events: EventsListItem[],
+  sortKey: SortKey,
+): EventsListItem[] {
   const list = [...events];
   switch (sortKey) {
+    case "priceAsc":
+      return list.sort(
+        (a, b) =>
+          (startingPriceOf(a) ?? Number.POSITIVE_INFINITY) -
+          (startingPriceOf(b) ?? Number.POSITIVE_INFINITY),
+      );
+    case "priceDesc":
+      return list.sort(
+        (a, b) =>
+          (startingPriceOf(b) ?? Number.NEGATIVE_INFINITY) -
+          (startingPriceOf(a) ?? Number.NEGATIVE_INFINITY),
+      );
     case "nameAsc":
       return list.sort((a, b) =>
         (a.title || "").localeCompare(b.title || "", "tr", {
@@ -221,12 +250,9 @@ function EventsToolbar({
   onClearSearch?: () => void;
 }) {
   const { t } = useTranslation();
+  const sortOption = SORT_OPTIONS.find(([key]) => key === sortKey);
   const sortLabel =
-    sortKey === "nameAsc"
-      ? t("sortByNameAsc")
-      : sortKey === "nameDesc"
-        ? t("sortByNameDesc")
-        : t("sort");
+    sortKey !== "dateAsc" && sortOption ? t(sortOption[1]) : t("sort");
 
   return (
     <View style={styles.toolbarBlock}>
@@ -443,7 +469,7 @@ export default function EventsScreen() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<HomeViewMode>("grid");
+  const [viewMode, setViewMode] = useState<HomeViewMode>("list");
   const [sortKey, setSortKey] = useState<SortKey>("dateAsc");
   const [sortOpen, setSortOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -840,13 +866,7 @@ export default function EventsScreen() {
       >
         <Pressable style={styles.sortOverlay} onPress={() => setSortOpen(false)}>
           <Pressable style={styles.sortSheet} onPress={() => {}}>
-            {(
-              [
-                ["dateAsc", t("sortByDate")],
-                ["nameAsc", t("sortByNameAsc")],
-                ["nameDesc", t("sortByNameDesc")],
-              ] as const
-            ).map(([key, label]) => (
+            {SORT_OPTIONS.map(([key, labelKey]) => (
               <TouchableOpacity
                 key={key}
                 style={[
@@ -864,7 +884,7 @@ export default function EventsScreen() {
                     sortKey === key && styles.sortOptionTextActive,
                   ]}
                 >
-                  {label}
+                  {t(labelKey)}
                 </Text>
               </TouchableOpacity>
             ))}

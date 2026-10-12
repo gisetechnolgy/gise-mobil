@@ -100,7 +100,7 @@ export default function ScanResultModal({
                     />
                   ) : null}
                   {ticket.venueName ? (
-                    <InfoRow label="Mekan" value={ticket.venueName} />
+                    <InfoRow label="Mekân" value={ticket.venueName} />
                   ) : null}
                   <View style={styles.divider} />
                   <InfoRow label="Ad Soyad" value={ticket.holderName} />

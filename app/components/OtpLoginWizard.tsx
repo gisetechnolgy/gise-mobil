@@ -82,12 +82,7 @@ export default function OtpLoginWizard({ redirectPath }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(0);
-  const [helpOpen, setHelpOpen] = useState(false);
   const [devOtpCode, setDevOtpCode] = useState<string | null>(null);
-
-  useEffect(() => {
-    setHelpOpen(false);
-  }, [step]);
 
   useEffect(() => {
     if (secondsLeft <= 0) return undefined;
@@ -99,8 +94,9 @@ export default function OtpLoginWizard({ redirectPath }: Props) {
     router.replace((redirectPath as Href) || ("/(tabs)" as Href));
   };
 
-  const openSupport = () => {
-    void Linking.openURL(SUPPORT_URL);
+  const openSupport = (subject?: string) => {
+    const q = subject ? `?subject=${encodeURIComponent(subject)}` : "";
+    void Linking.openURL(`${SUPPORT_URL}${q}`);
   };
 
   const run = async (fn: () => Promise<void>) => {
@@ -156,7 +152,7 @@ export default function OtpLoginWizard({ redirectPath }: Props) {
     void run(async () => {
       const res = await otpEmailUnavailable(email);
       if (!res.hasPhone) {
-        openSupport();
+        openSupport(t("otpSupportNoEmailAccess"));
         return;
       }
       setMaskedPhone(res.maskedPhone || "");
@@ -281,42 +277,6 @@ export default function OtpLoginWizard({ redirectPath }: Props) {
             />
           </View>
           {primaryButton(t("otpContinue"), t("otpContinuing"), onStart)}
-
-          <View>
-            <TouchableOpacity
-              onPress={() => setHelpOpen((o) => !o)}
-              disabled={busy}
-              style={styles.helpToggle}
-            >
-              <Text style={styles.helpToggleText}>
-                {t("otpGetHelp")} {helpOpen ? "▴" : "▾"}
-              </Text>
-            </TouchableOpacity>
-            {helpOpen ? (
-              <View style={styles.helpMenu}>
-                <TouchableOpacity
-                  style={styles.helpItem}
-                  onPress={() => {
-                    setHelpOpen(false);
-                    router.push("/(auth)/forgot-password" as Href);
-                  }}
-                >
-                  <Text style={styles.helpItemText}>
-                    {t("otpHelpForgotContact")}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.helpItem, styles.helpItemLast]}
-                  onPress={() => {
-                    setHelpOpen(false);
-                    openSupport();
-                  }}
-                >
-                  <Text style={styles.helpItemText}>{t("otpHelpMoreInfo")}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-          </View>
         </View>
       )}
 
@@ -374,7 +334,7 @@ export default function OtpLoginWizard({ redirectPath }: Props) {
 
       <Text style={styles.bottomText}>
         {t("otpHavingTrouble")}{" "}
-        <Text style={styles.bottomLink} onPress={openSupport}>
+        <Text style={styles.bottomLink} onPress={() => openSupport()}>
           {t("otpHelpCenter")}
         </Text>
       </Text>
@@ -459,35 +419,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontFamily: "PoppinsSemiBold",
-  },
-  helpToggle: {
-    paddingVertical: 6,
-    alignSelf: "flex-start",
-  },
-  helpToggleText: {
-    color: "#fff",
-    fontSize: 14,
-    fontFamily: "PoppinsSemiBold",
-  },
-  helpMenu: {
-    marginTop: 6,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  helpItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#edeff6",
-  },
-  helpItemLast: {
-    borderBottomWidth: 0,
-  },
-  helpItemText: {
-    color: AppColors.heading,
-    fontSize: 14,
-    fontFamily: "PoppinsMedium",
   },
   errorBox: {
     backgroundColor: "rgba(239, 68, 68, 0.15)",

@@ -154,7 +154,9 @@ export default function TicketsScreen() {
         ]}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace("/(tabs)")
+          }
           style={[styles.backBtn, isTablet && styles.backBtnTablet]}
         >
           <Ionicons

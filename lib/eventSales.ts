@@ -94,7 +94,7 @@ function formatSaleAmount(amount: unknown): string {
   const value = Number(amount ?? 0);
   return `${new Intl.NumberFormat('tr-TR', {
     maximumFractionDigits: 0,
-  }).format(value)} TL`;
+  }).format(value)} ₺`;
 }
 
 function extractProductLines(details: unknown): SaleProductLine[] {

@@ -328,7 +328,7 @@ function PanelCompanyForm({
         submit: t("venueApplySubmit"),
         success: t("venueApplySuccess"),
         aboutLabel: t("venueAbout"),
-        namePlaceholder: isEn ? "Venue name" : "Mekan adı",
+        namePlaceholder: isEn ? "Venue name" : "Mekân adı",
       };
     }
     return {
@@ -611,9 +611,9 @@ function PanelCompanyForm({
 
       {isVenue ? (
         <>
-          <FormSectionTitle title={isEn ? "Venue Layout" : "Mekan Planı"} />
+          <FormSectionTitle title={isEn ? "Venue Layout" : "Mekân Planı"} />
           <ImageFileField
-            label={isEn ? "Venue Layout" : "Mekan Planı"}
+            label={isEn ? "Venue Layout" : "Mekân Planı"}
             hint={IMAGE_HINTS.square[isEn ? "en" : "tr"]}
             value={form.layout}
             onChange={(v) => setMedia("layout", v)}
@@ -651,7 +651,7 @@ function PanelCompanyForm({
             placeholder="info@ornek.com"
           />
 
-          <FormSectionTitle title={isEn ? "About Venue" : "Mekan Hakkında"} />
+          <FormSectionTitle title={isEn ? "About Venue" : "Mekân Hakkında"} />
           <FormField
             label={copy.aboutLabel}
             value={form.about}
@@ -762,7 +762,7 @@ function PanelCompanyForm({
             value={form.googleKeywords}
             onChangeText={(v) => setText("googleKeywords", v)}
             placeholder={
-              isEn ? "concert, venue, nicosia" : "konser, mekan, lefkoşa"
+              isEn ? "concert, venue, nicosia" : "konser, mekân, lefkoşa"
             }
           />
           <FormField

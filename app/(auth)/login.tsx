@@ -9,7 +9,7 @@ import {
   View
 } from "react-native";
 import AuthScreenLayout from "../components/AuthScreenLayout";
-import LanguageToggle from "../components/LanguageToggle";
+import LanguagePicker from "../components/LanguagePicker";
 import OtpLoginWizard from "../components/OtpLoginWizard";
 import { useAuth } from "../context/AuthContext";
 import { useTranslation } from "../context/_LocaleContext";
@@ -116,8 +116,9 @@ export default function LoginScreen() {
 
   return (
     <AuthScreenLayout
-      rightHeaderAction={<LanguageToggle />}
+      rightHeaderAction={<LanguagePicker transparent />}
       contentStyle={styles.content}
+      hideSlogan={loginMode === "otp"}
     >
       {loginMode === null ? (
         <View style={styles.formBlock}>

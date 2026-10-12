@@ -1,8 +1,10 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useState } from "react";
 import {
   Animated,
   Dimensions,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -26,6 +28,7 @@ import { usePlatformLogoSource } from "../context/BrandingContext";
 import { useAuth } from "../context/AuthContext";
 import { useLocale, useTranslation } from "../context/_LocaleContext";
 import { useIsTablet } from "../../lib/responsive";
+import LanguagePicker from "./LanguagePicker";
 import { AppText as Text } from "@/components/ui/AppText";
 import { SiteIcon } from "@/components/icons/SiteIcon";
 
@@ -40,6 +43,38 @@ const MENU_PAD_H_TABLET = 8;
 const ROW_PAD_H_PHONE = 20;
 const ROW_PAD_H_TABLET = 26;
 const LOGO_ASPECT = 1185 / 438;
+
+const SOCIAL_LINKS: {
+  id: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  url: string;
+}[] = [
+  {
+    id: "instagram",
+    label: "Instagram",
+    icon: "logo-instagram",
+    url: "https://www.instagram.com/gisekibris",
+  },
+  {
+    id: "facebook",
+    label: "Facebook",
+    icon: "logo-facebook",
+    url: "https://www.facebook.com/gisekibris",
+  },
+  {
+    id: "x",
+    label: "X",
+    icon: "logo-x",
+    url: "https://twitter.com/gisekibris",
+  },
+  {
+    id: "youtube",
+    label: "YouTube",
+    icon: "logo-youtube",
+    url: "https://www.youtube.com/channel/UCLWWGONjci9N3wl5SC3zsCg",
+  },
+];
 
 export type DrawerNavigatePayload =
   | { type: "route"; href: string }
@@ -101,6 +136,8 @@ export default function DrawerMenu({
   const logoW = Math.round(logoH * LOGO_ASPECT);
   const menuPadH = isTablet ? MENU_PAD_H_TABLET : MENU_PAD_H_PHONE;
   const rowPadH = isTablet ? ROW_PAD_H_TABLET : ROW_PAD_H_PHONE;
+  const rowPadV = isTablet ? 10 : 8;
+  const itemFontSize = isTablet ? 17 : 14;
   const tabClearance = isTablet
     ? TAB_BAR_SCROLL_BOTTOM.tablet
     : TAB_BAR_SCROLL_BOTTOM.phone;
@@ -137,13 +174,16 @@ export default function DrawerMenu({
               recyclingKey="drawer-platform-logo"
               style={{ width: logoW, height: logoH }}
             />
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeBtn}
-              accessibilityLabel={t("close")}
-            >
-              <SiteIcon icon="close" size={16} color="#2D2D2D" />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <LanguagePicker />
+              <TouchableOpacity
+                onPress={onClose}
+                style={styles.closeBtn}
+                accessibilityLabel={t("close")}
+              >
+                <SiteIcon icon="close" size={16} color="#2D2D2D" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView
@@ -180,7 +220,7 @@ export default function DrawerMenu({
                   }}
                   activeOpacity={0.65}
                   style={{
-                    paddingVertical: isTablet ? 14 : 12,
+                    paddingVertical: rowPadV,
                     paddingHorizontal: rowPadH,
                   }}
                 >
@@ -190,7 +230,7 @@ export default function DrawerMenu({
                         activeItem === "managerEvents"
                           ? AppColors.heading
                           : AppColors.cardText,
-                      fontSize: isTablet ? 20 : 16,
+                      fontSize: itemFontSize,
                       fontFamily:
                         activeItem === "managerEvents"
                           ? "PoppinsSemiBold"
@@ -230,7 +270,7 @@ export default function DrawerMenu({
                       onPress={() => handleItem(item)}
                       activeOpacity={0.65}
                       style={{
-                        paddingVertical: isTablet ? 14 : 12,
+                        paddingVertical: rowPadV,
                         paddingHorizontal: rowPadH,
                       }}
                     >
@@ -239,7 +279,7 @@ export default function DrawerMenu({
                           color: isActive
                             ? AppColors.heading
                             : AppColors.cardText,
-                          fontSize: isTablet ? 20 : 16,
+                          fontSize: itemFontSize,
                           fontFamily: isActive
                             ? "PoppinsSemiBold"
                             : "PoppinsMedium",
@@ -252,6 +292,31 @@ export default function DrawerMenu({
                 })}
               </View>
             ))}
+
+            <View
+              style={[styles.sectionDivider, { marginHorizontal: rowPadH }]}
+            />
+            <View style={[styles.socialRow, { paddingHorizontal: rowPadH }]}>
+              {SOCIAL_LINKS.map((s) => (
+                <TouchableOpacity
+                  key={s.id}
+                  onPress={() => void Linking.openURL(s.url)}
+                  activeOpacity={0.7}
+                  style={[
+                    styles.socialBtn,
+                    isTablet && styles.socialBtnTablet,
+                  ]}
+                  accessibilityRole="link"
+                  accessibilityLabel={s.label}
+                >
+                  <Ionicons
+                    name={s.icon}
+                    size={isTablet ? 22 : 19}
+                    color={AppColors.heading}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
           </ScrollView>
         </Animated.View>
       </View>
@@ -287,6 +352,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: NAV_BORDER_COLOR,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   closeBtn: {
     width: 40,
     height: 40,
@@ -297,24 +367,43 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   section: {
-    marginBottom: 18,
-    paddingTop: 6,
+    marginBottom: 8,
+    paddingTop: 2,
   },
   sectionDivider: {
     height: 1,
     backgroundColor: "rgba(52, 61, 72, 0.22)",
-    marginBottom: 12,
+    marginBottom: 8,
     marginTop: 2,
   },
   sectionTitle: {
     color: AppColors.heading,
     fontFamily: "PoppinsBold",
-    fontSize: 12,
+    fontSize: 15,
     letterSpacing: 0.6,
-    marginBottom: 4,
-    marginTop: 4,
+    marginBottom: 2,
+    marginTop: 2,
   },
   sectionTitleTablet: {
-    fontSize: 13,
+    fontSize: 17,
+  },
+  socialRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingTop: 4,
+  },
+  socialBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: CONTROL_BORDER,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  socialBtnTablet: {
+    width: 46,
+    height: 46,
   },
 });

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -19,7 +19,7 @@ import {
   type CategoryItem,
 } from "../lib/definitions";
 import {
-  fetchVenuesWithFeaturedOrder,
+  fetchVenueById,
   type VenueItem,
   venueImageCacheKey,
 } from "../lib/venues";
@@ -116,24 +116,26 @@ export default function FollowedVenuesScreen() {
       setLoading(false);
       return;
     }
-    setLoading(true);
     try {
-      const [allVenues, followedIds, categories] = await Promise.all([
-        fetchVenuesWithFeaturedOrder(),
-        readFollowedVenueIds(user.id),
-        fetchVenueCategories(),
+      const followedIds = await readFollowedVenueIds(user.id);
+      const [venueResults, categories] = await Promise.all([
+        Promise.all(followedIds.map((id) => fetchVenueById(id))),
+        fetchVenueCategories().catch(() => [] as CategoryItem[]),
       ]);
-      const followedSet = new Set(followedIds);
       setVenueCategories(categories);
-      setVenues(allVenues.filter((venue) => followedSet.has(venue.id)));
+      setVenues(venueResults.filter((v): v is VenueItem => Boolean(v)));
+    } catch {
+      setVenues([]);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -167,7 +169,7 @@ export default function FollowedVenuesScreen() {
           <Ionicons name="chevron-back" size={isTablet ? 26 : 22} color={AppColors.cardText} />
         </TouchableOpacity>
         <Text style={[styles.pageTitle, isTablet && styles.pageTitleTablet]}>
-          Takip Edilen Mekanlar
+          Takip Edilen Mekânlar
         </Text>
         <View style={styles.backBtn} />
       </View>
@@ -190,10 +192,10 @@ export default function FollowedVenuesScreen() {
                 />
               </View>
               <Text style={[styles.emptyTitle, isTablet && styles.emptyTitleTablet]}>
-                Takip ettiğin mekan bulunmuyor
+                Takip ettiğin mekân bulunmuyor
               </Text>
               <Text style={[styles.emptySubtitle, isTablet && styles.emptySubtitleTablet]}>
-                Beğendiğin mekanları takip ederek burada kolayca ulaşabilirsin.
+                Beğendiğin mekânları takip ederek burada kolayca ulaşabilirsin.
               </Text>
               <TouchableOpacity
                 activeOpacity={0.85}
@@ -201,7 +203,7 @@ export default function FollowedVenuesScreen() {
                 onPress={() => router.push("/(tabs)/venues" as import("expo-router").Href)}
               >
                 <Text style={[styles.emptyActionText, isTablet && styles.emptyActionTextTablet]}>
-                  Mekanları Keşfet
+                  Mekânları Keşfet
                 </Text>
               </TouchableOpacity>
             </View>

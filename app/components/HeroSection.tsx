@@ -191,7 +191,7 @@ export default function HeroSection({
                 color: "rgba(52,61,72,0.5)",
               }}
             >
-              Etkinlik veya mekan ara...
+              Etkinlik veya mekân ara...
             </Text>
           </TouchableOpacity>
         </View>

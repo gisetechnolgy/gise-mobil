@@ -1,9 +1,14 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { usePathname, useRouter, useSegments, type Href } from "expo-router";
-import { useCallback, useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
+  Keyboard,
   Platform,
+  Pressable,
+  StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -29,17 +34,20 @@ import { AppText as Text } from "@/components/ui/AppText";
 type TabConfig = {
   iconFamily?: "ionicons" | "material";
   icon: string;
-  labelKey:
-    | "home"
-    | "events"
-    | "support"
-    | "profile"
-    | "scanTicket"
-    | "admin"
-    | "userMode";
+  labelKey: "home" | "events" | "support" | "profile" | "scanTicket" | "myTickets";
 };
 
-const CONSUMER_TABS: { name: string; href: Href; config: TabConfig }[] = [
+type TabDef = {
+  name: string;
+  href: Href;
+  config: TabConfig;
+  /** Ortadaki vurgulu (yuvarlak) buton */
+  center?: boolean;
+  /** İkon boyutuna eklenecek px (görsel olarak küçük kalan ikonlar için) */
+  iconBoost?: number;
+};
+
+const CONSUMER_TABS: TabDef[] = [
   {
     name: "index",
     href: "/(tabs)" as Href,
@@ -51,6 +59,12 @@ const CONSUMER_TABS: { name: string; href: Href; config: TabConfig }[] = [
     config: { iconFamily: "ionicons", icon: "calendar", labelKey: "events" },
   },
   {
+    name: "tickets",
+    href: "/tickets" as Href,
+    config: { iconFamily: "ionicons", icon: "qr-code", labelKey: "myTickets" },
+    center: true,
+  },
+  {
     name: "support",
     href: "/(tabs)/support" as Href,
     config: {
@@ -58,6 +72,7 @@ const CONSUMER_TABS: { name: string; href: Href; config: TabConfig }[] = [
       icon: "help-circle",
       labelKey: "support",
     },
+    iconBoost: 5,
   },
   {
     name: "profile",
@@ -66,7 +81,7 @@ const CONSUMER_TABS: { name: string; href: Href; config: TabConfig }[] = [
   },
 ];
 
-const ADMIN_TABS: { name: string; href: Href; config: TabConfig }[] = [
+const ADMIN_TABS: TabDef[] = [
   {
     name: "events",
     href: "/(admin-tabs)/events" as Href,
@@ -126,13 +141,34 @@ export default function PersistentTabBar() {
   const { pushAnim: drawerAnim } = useDrawer();
   const { pushAnim: notifAnim } = useNotificationsPanel();
   const [roleBusy, setRoleBusy] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvt, () => setKeyboardOpen(true));
+    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardOpen(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    setRoleMenuOpen(false);
+  }, [pathname]);
 
   const visible = shouldShowAppTabBar(pathname, segments as string[]);
   const isAdminMode = !!user?.isSaleMode;
-  const showAdminEntry = !!user?.canEnterAdminMode && !user.isSaleMode;
-  const showUserModeExit =
+  const canEnterAdmin = !!user?.canEnterAdminMode;
+  const canExitAdmin =
     !!user &&
     canExitAdminMode({ crole: user.crole, isSalePoint: user.isSalePoint });
+  /** Rol seçici: hem kullanıcı hem admin tarafına geçebilen hesaplar */
+  const hasRolePicker = isAdminMode ? canExitAdmin : canEnterAdmin;
 
   const activeTab = isAdminMode
     ? resolveAdminActiveTab(pathname, segments as string[])
@@ -150,32 +186,34 @@ export default function PersistentTabBar() {
       router.replace("/(admin-tabs)/events" as Href);
     } finally {
       setRoleBusy(false);
+      setRoleMenuOpen(false);
     }
   }, [roleBusy, router, setManagerSaleMode, user]);
 
   const exitAdminMode = useCallback(async () => {
-    if (roleBusy || !user || !showUserModeExit) return;
+    if (roleBusy || !user || !canExitAdmin) return;
     setRoleBusy(true);
     try {
       await setManagerSaleMode(false);
       router.replace("/(tabs)" as Href);
     } finally {
       setRoleBusy(false);
+      setRoleMenuOpen(false);
     }
-  }, [roleBusy, router, setManagerSaleMode, showUserModeExit, user]);
+  }, [roleBusy, router, setManagerSaleMode, canExitAdmin, user]);
 
-  if (!visible) return null;
+  if (!visible || keyboardOpen) return null;
 
   const bottomOffset = Math.max(insets.bottom, 12) + 8;
   const barHeight = isTablet ? 82 : 68;
   const sideInset = getScreenHorizontalInset(isTablet);
   const iconSize = isTablet ? 30 : 25;
   const labelSize = isTablet ? 12 : 10;
-
-  const showRoleSwitcher = isAdminMode ? showUserModeExit : showAdminEntry;
-  const roleConfig: TabConfig = isAdminMode
-    ? { iconFamily: "ionicons", icon: "swap-horizontal", labelKey: "userMode" }
-    : { iconFamily: "ionicons", icon: "people", labelKey: "admin" };
+  const centerSize = isTablet ? 70 : 60;
+  /** Tüm sekmelerde ikon alanı aynı → etiketler tek hizada */
+  const iconSlot = iconSize + 6;
+  /** QR dairesi barın üst kenarından taşar */
+  const centerLift = isTablet ? 17 : 14;
 
   const barShadow = Platform.select({
     ios: {
@@ -203,106 +241,347 @@ export default function PersistentTabBar() {
   });
   const opacity = Animated.multiply(drawerOpacity, notifOpacity);
 
-  return (
-    <Animated.View
-      pointerEvents="box-none"
-      style={{
-        position: "absolute",
-        bottom: bottomOffset,
-        left: sideInset,
-        right: sideInset,
-        height: barHeight,
-        opacity,
-        zIndex: 100,
-        elevation: 100,
-      }}
-    >
-      <View
-        style={[
-          {
-            flex: 1,
-            borderRadius: HOME_CARD_BORDER_RADIUS,
-            flexDirection: "row",
-            alignItems: "stretch",
-            backgroundColor: "#0E1F58",
-            overflow: "hidden",
-          },
-          barShadow,
-        ]}
-      >
-        {tabs.map((tab) => {
-          const isFocused = activeTab === tab.name;
-          const iconColor = isFocused
-            ? AppColors.navText
-            : "rgba(255, 255, 255, 0.45)";
-          return (
-            <TouchableOpacity
-              key={tab.name}
-              onPress={() => {
-                if (!isFocused) router.replace(tab.href);
-              }}
-              activeOpacity={0.7}
-              style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 3,
-              }}
-            >
-              <TabIcon
-                config={tab.config}
-                iconSize={iconSize}
-                iconColor={iconColor}
-              />
-              <Text
-                style={{
-                  color: iconColor,
-                  fontSize: labelSize,
-                  fontFamily: "PoppinsSemiBold",
-                }}
-                numberOfLines={1}
-              >
-                {t(tab.config.labelKey)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+  const onTabPress = (tab: TabDef, isFocused: boolean) => {
+    if (tab.name === "profile" && hasRolePicker) {
+      setRoleMenuOpen((open) => !open);
+      return;
+    }
+    setRoleMenuOpen(false);
+    if (tab.name === "tickets" && !user) {
+      router.push("/(auth)/login" as Href);
+      return;
+    }
+    if (!isFocused) router.replace(tab.href);
+  };
 
-        {showRoleSwitcher ? (
+  const roleOptions = [
+    {
+      key: "user",
+      icon: "person" as const,
+      label: t("roleUser"),
+      active: !isAdminMode,
+      onPress: () => {
+        if (isAdminMode) void exitAdminMode();
+        else {
+          setRoleMenuOpen(false);
+          router.replace("/(tabs)/profile" as Href);
+        }
+      },
+    },
+    {
+      key: "admin",
+      icon: "people" as const,
+      label: t("roleAdmin"),
+      active: isAdminMode,
+      onPress: () => {
+        if (!isAdminMode) void enterAdminMode();
+        else {
+          setRoleMenuOpen(false);
+          router.replace("/(admin-tabs)/profile" as Href);
+        }
+      },
+    },
+  ];
+
+  return (
+    <>
+      {roleMenuOpen ? (
+        <Pressable
+          style={[StyleSheet.absoluteFill, { zIndex: 99, elevation: 99 }]}
+          onPress={() => setRoleMenuOpen(false)}
+        />
+      ) : null}
+
+      {roleMenuOpen ? (
+        <View
+          style={[
+            styles.roleMenu,
+            barShadow,
+            {
+              bottom: bottomOffset + barHeight + 10,
+              right: sideInset,
+            },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => {
-              if (isAdminMode) void exitAdminMode();
-              else void enterAdminMode();
+              setRoleMenuOpen(false);
+              router.replace(
+                (isAdminMode
+                  ? "/(admin-tabs)/profile"
+                  : "/(tabs)/profile") as Href,
+              );
             }}
-            activeOpacity={0.85}
-            style={{
-              flex: 1,
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 3,
-              backgroundColor: AppColors.accent,
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={t(roleConfig.labelKey)}
+            disabled={roleBusy}
+            activeOpacity={0.75}
+            style={styles.roleRow}
           >
-            <TabIcon
-              config={roleConfig}
-              iconSize={iconSize}
-              iconColor={AppColors.navText}
-            />
-            <Text
-              style={{
-                color: AppColors.navText,
-                fontSize: labelSize,
-                fontFamily: "PoppinsSemiBold",
-              }}
-              numberOfLines={1}
-            >
-              {t(roleConfig.labelKey)}
+            <View style={styles.roleIconWrap}>
+              <Ionicons
+                name="person-circle-outline"
+                size={20}
+                color={AppColors.heading}
+              />
+            </View>
+            <Text style={styles.roleLabel} numberOfLines={1}>
+              {t("profile")}
             </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color="rgba(0,0,0,0.35)"
+            />
           </TouchableOpacity>
-        ) : null}
-      </View>
-    </Animated.View>
+
+          <View style={styles.roleMenuDivider} />
+
+          <Text style={styles.roleMenuTitle}>{t("roleSwitchTitle")}</Text>
+          {roleOptions.map((opt) => (
+            <TouchableOpacity
+              key={opt.key}
+              onPress={opt.onPress}
+              disabled={roleBusy}
+              activeOpacity={0.75}
+              style={[styles.roleRow, opt.active && styles.roleRowActive]}
+            >
+              <View
+                style={[
+                  styles.roleIconWrap,
+                  opt.active && styles.roleIconWrapActive,
+                ]}
+              >
+                <Ionicons
+                  name={opt.icon}
+                  size={18}
+                  color={opt.active ? "#FFFFFF" : AppColors.heading}
+                />
+              </View>
+              <Text style={styles.roleLabel} numberOfLines={1}>
+                {opt.label}
+              </Text>
+              {roleBusy && !opt.active ? (
+                <ActivityIndicator size="small" color={AppColors.accent} />
+              ) : opt.active ? (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={20}
+                  color={AppColors.accent}
+                />
+              ) : (
+                <Ionicons
+                  name="swap-horizontal"
+                  size={18}
+                  color="rgba(0,0,0,0.35)"
+                />
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : null}
+
+      <Animated.View
+        pointerEvents="box-none"
+        style={{
+          position: "absolute",
+          bottom: bottomOffset,
+          left: sideInset,
+          right: sideInset,
+          height: barHeight,
+          opacity,
+          zIndex: 100,
+          elevation: 100,
+        }}
+      >
+        <View
+          style={[
+            {
+              flex: 1,
+              borderRadius: HOME_CARD_BORDER_RADIUS,
+              flexDirection: "row",
+              alignItems: "stretch",
+              backgroundColor: "#0E1F58",
+            },
+            barShadow,
+          ]}
+        >
+          {tabs.map((tab) => {
+            const isFocused =
+              activeTab === tab.name ||
+              (tab.name === "profile" && roleMenuOpen);
+            const iconColor = isFocused
+              ? AppColors.navText
+              : "rgba(255, 255, 255, 0.45)";
+
+            if (tab.center) {
+              return (
+                <TouchableOpacity
+                  key={tab.name}
+                  onPress={() => onTabPress(tab, isFocused)}
+                  activeOpacity={0.8}
+                  style={styles.tabItem}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(tab.config.labelKey)}
+                >
+                  <View style={[styles.iconSlot, { height: iconSlot }]}>
+                    <View
+                      style={[
+                        styles.centerCircle,
+                        {
+                          width: centerSize,
+                          height: centerSize,
+                          borderRadius: centerSize / 2,
+                          transform: [{ translateY: -centerLift }],
+                        },
+                        isFocused && styles.centerCircleActive,
+                      ]}
+                    >
+                      <LinearGradient
+                        colors={["#E0559A", AppColors.accent, "#6E0F42"]}
+                        locations={[0, 0.55, 1]}
+                        start={{ x: 0.2, y: 0 }}
+                        end={{ x: 0.8, y: 1 }}
+                        style={[
+                          StyleSheet.absoluteFill,
+                          { borderRadius: centerSize / 2 },
+                        ]}
+                      />
+                      <Ionicons
+                        name="qr-code"
+                        size={iconSize + 10}
+                        color="#FFFFFF"
+                        style={styles.centerIcon}
+                      />
+                    </View>
+                  </View>
+                  <Text
+                    style={{
+                      color: iconColor,
+                      fontSize: labelSize,
+                      fontFamily: "PoppinsSemiBold",
+                    }}
+                    numberOfLines={1}
+                  >
+                    {t(tab.config.labelKey)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }
+
+            return (
+              <TouchableOpacity
+                key={tab.name}
+                onPress={() => onTabPress(tab, isFocused)}
+                activeOpacity={0.7}
+                style={styles.tabItem}
+              >
+                <View style={[styles.iconSlot, { height: iconSlot }]}>
+                  <TabIcon
+                    config={tab.config}
+                    iconSize={iconSize + (tab.iconBoost ?? 0)}
+                    iconColor={iconColor}
+                  />
+                </View>
+                <Text
+                  style={{
+                    color: iconColor,
+                    fontSize: labelSize,
+                    fontFamily: "PoppinsSemiBold",
+                  }}
+                  numberOfLines={1}
+                >
+                  {t(tab.config.labelKey)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </Animated.View>
+    </>
   );
 }
+
+const styles = StyleSheet.create({
+  tabItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+  },
+  iconSlot: {
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
+  },
+  centerCircle: {
+    backgroundColor: AppColors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 16,
+  },
+  centerIcon: {
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 3,
+  },
+  centerCircleActive: {
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  roleMenu: {
+    position: "absolute",
+    width: 240,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    zIndex: 101,
+    elevation: 101,
+  },
+  roleMenuDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(0,0,0,0.12)",
+    marginVertical: 6,
+    marginHorizontal: 8,
+  },
+  roleMenuTitle: {
+    color: "rgba(0,0,0,0.5)",
+    fontFamily: "PoppinsSemiBold",
+    fontSize: 11,
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 6,
+    textTransform: "uppercase",
+  },
+  roleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  roleRowActive: {
+    backgroundColor: "rgba(174, 37, 109, 0.08)",
+  },
+  roleIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(14, 31, 88, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  roleIconWrapActive: {
+    backgroundColor: AppColors.accent,
+  },
+  roleLabel: {
+    flex: 1,
+    color: AppColors.heading,
+    fontFamily: "PoppinsSemiBold",
+    fontSize: 14,
+  },
+});

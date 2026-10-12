@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -15,7 +15,7 @@ import { readFollowedCompanyIds } from "../lib/followedCompanies";
 import { useIsTablet } from "../lib/responsive";
 import { resolveRemoteImageUrl } from "../lib/remoteImage";
 import {
-  fetchCompaniesSorted,
+  fetchCompanyById,
   type CompanyItem,
   companyImageCacheKey,
 } from "../lib/companies";
@@ -69,22 +69,24 @@ export default function FollowedCompaniesScreen() {
       setLoading(false);
       return;
     }
-    setLoading(true);
     try {
-      const [allCompanies, followedIds] = await Promise.all([
-        fetchCompaniesSorted(),
-        readFollowedCompanyIds(user.id),
-      ]);
-      const followedSet = new Set(followedIds);
-      setCompanies(allCompanies.filter((company) => followedSet.has(company.id)));
+      const followedIds = await readFollowedCompanyIds(user.id);
+      const results = await Promise.all(
+        followedIds.map((id) => fetchCompanyById(id)),
+      );
+      setCompanies(results.filter((c): c is CompanyItem => Boolean(c)));
+    } catch {
+      setCompanies([]);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

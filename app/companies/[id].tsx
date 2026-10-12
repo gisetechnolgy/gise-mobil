@@ -3,7 +3,6 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Linking,
   ScrollView,
   Share,
   StyleSheet,
@@ -50,10 +49,12 @@ import { useAuth } from "../context/AuthContext";
 import { useTranslation } from "../context/_LocaleContext";
 import { RemoteCardImage } from "../components/_RemoteCardImage";
 import ClampedHtmlSection from "../components/detail/ClampedHtmlSection";
-import DetailActionButton, {
-  DetailActionsRow,
-} from "../components/detail/DetailActionButton";
+import { DetailIconButton } from "../components/detail/DetailActionButton";
 import DetailCard from "../components/detail/DetailCard";
+import MediaSheet, {
+  buildMediaImages,
+  hasMedia,
+} from "../components/detail/MediaSheet";
 import DetailMetaRow from "../components/detail/DetailMetaRow";
 import HomeEventHorizontalCard from "../components/detail/HomeEventHorizontalCard";
 import ImmersiveDetailHero from "../components/detail/ImmersiveDetailHero";
@@ -79,6 +80,7 @@ export default function CompanyDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [followed, setFollowed] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
 
   const load = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -132,6 +134,11 @@ export default function CompanyDetailScreen() {
   const thumbUrl =
     resolveRemoteImageUrl(company?.logoUrl) ||
     resolveRemoteImageUrl(company?.bannerUrl);
+
+  const mediaImages = buildMediaImages([
+    { uri: resolveRemoteImageUrl(company?.bannerUrl), label: company?.name || t("media") },
+    { uri: resolveRemoteImageUrl(company?.logoUrl), label: "Logo" },
+  ]);
 
   const cityLabel = formatCityLabel(company?.city);
   const addressLabel = [cityLabel, company?.address].filter(Boolean).join(", ");
@@ -221,42 +228,37 @@ export default function CompanyDetailScreen() {
                           label={company.phone || ""}
                           href={company.phone ? `tel:${company.phone}` : null}
                         />
+                        <View style={styles.metaActions}>
+                          <DetailIconButton
+                            icon="heart-outline"
+                            activeIcon="heart"
+                            active={followed}
+                            label={followed ? t("followingBtn") : t("follow")}
+                            onPress={() => {
+                              if (!user?.id) {
+                                router.push("/(auth)/login");
+                                return;
+                              }
+                              void toggleCompanyFollow(user.id, company.id).then(
+                                setFollowed,
+                              );
+                            }}
+                          />
+                          {hasMedia(company.youtube, mediaImages) ? (
+                            <DetailIconButton
+                              icon="play-circle-outline"
+                              label={t("media")}
+                              onPress={() => setMediaOpen(true)}
+                            />
+                          ) : null}
+                          <DetailIconButton
+                            icon="share-social-outline"
+                            label={t("share")}
+                            onPress={() => void onShare()}
+                          />
+                        </View>
                       </View>
                     </View>
-                    <DetailActionsRow>
-                      <DetailActionButton
-                        icon={followed ? "heart" : "heart-outline"}
-                        label={followed ? t("followingBtn") : t("follow")}
-                        onPress={() => {
-                          if (!user?.id) {
-                            router.push("/(auth)/login");
-                            return;
-                          }
-                          void toggleCompanyFollow(user.id, company.id).then(
-                            setFollowed,
-                          );
-                        }}
-                      />
-                      {company.youtube ? (
-                        <DetailActionButton
-                          icon="play-circle-outline"
-                          label={t("media")}
-                          onPress={() => {
-                            void Linking.openURL(
-                              company.youtube!.startsWith("http")
-                                ? company.youtube!
-                                : `https://www.youtube.com/watch?v=${company.youtube}`,
-                            );
-                          }}
-                        />
-                      ) : null}
-                      <DetailActionButton
-                        icon="share-outline"
-                        label={t("share")}
-                        onPress={() => void onShare()}
-                        flex={0.7}
-                      />
-                    </DetailActionsRow>
                   </DetailCard>
 
                   {company.about?.trim() ? (
@@ -324,6 +326,12 @@ export default function CompanyDetailScreen() {
               ) : null}
             </View>
           </ScrollView>
+          <MediaSheet
+            visible={mediaOpen}
+            onClose={() => setMediaOpen(false)}
+            youtube={company?.youtube}
+            images={mediaImages}
+          />
         </View>
       )}
     </SafeAreaView>
@@ -353,6 +361,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     paddingTop: 2,
+  },
+  metaActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 8,
   },
   cardTitle: {
     marginBottom: 10,

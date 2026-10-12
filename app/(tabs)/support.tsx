@@ -12,6 +12,7 @@ import {
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -25,16 +26,15 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import HtmlContent from "../components/HtmlContent";
-import MobileHomeHeader from "../components/MobileHomeHeader";
 import InAppVideoModal, {
   type InAppVideoSource,
 } from "../../components/InAppVideoModal";
 import { AppColors } from "../../constants/colors";
 import { PAGE_GUTTER } from "../../constants/homeSection";
+import { tabBarScrollPadding } from "../../constants/tabBar";
+import { useIsTablet } from "../../lib/responsive";
 import { useAuth } from "../context/AuthContext";
-import { useDrawer } from "../context/DrawerContext";
 import { useLocale } from "../context/_LocaleContext";
-import { useNotificationsPanel } from "../context/NotificationContext";
 import { WIDGET_LIMITS } from "../../lib/helpdesk/config";
 import {
   getFaqTranslation,
@@ -65,8 +65,7 @@ export default function SupportScreen() {
   const { locale } = useLocale();
   const lang: HelpdeskLang = locale === "en" ? "en" : "tr";
   const insets = useSafeAreaInsets();
-  const { openDrawer } = useDrawer();
-  const { openNotifications, unreadCount } = useNotificationsPanel();
+  const isTablet = useIsTablet();
   const { user } = useAuth();
   const hd = useHelpdeskSupport(user, lang);
   const listRef = useRef<FlatList<HelpdeskMessage>>(null);
@@ -82,7 +81,25 @@ export default function SupportScreen() {
     if (source) setVideoSource(source);
   }, []);
 
-  const bottomPad = Math.max(insets.bottom, 16);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvt, () => setKeyboardOpen(true));
+    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardOpen(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  /** Klavye kapalıyken içerik floating tab bar'ın üstünde bitsin */
+  const bottomPad = keyboardOpen
+    ? 16
+    : tabBarScrollPadding(isTablet, insets.bottom);
 
   useEffect(() => {
     if (hd.view !== "chat") return;
@@ -93,13 +110,8 @@ export default function SupportScreen() {
   }, [hd.messages, hd.view, hd.awaitingStaff]);
 
   return (
-    <SafeAreaView edges={["left", "right"]} style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
       <StatusBar style="dark" />
-      <MobileHomeHeader
-        onMenuPress={openDrawer}
-        onNotificationPress={openNotifications}
-        notificationUnreadCount={unreadCount}
-      />
 
       <InAppVideoModal
         visible={!!videoSource}
@@ -750,7 +762,7 @@ function ChatView({
       <View
         style={[
           styles.chatInputBar,
-          { paddingBottom: Math.max(bottomPad * 0.55, 12) },
+          { paddingBottom: Math.max(bottomPad, 12) },
         ]}
       >
         <TextInput

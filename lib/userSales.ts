@@ -109,8 +109,8 @@ export function formatSalePaymentType(
 }
 
 export function formatSaleMoney(amount: number): string {
-  if (!Number.isFinite(amount)) return '0 TL';
-  return `${amount} TL`;
+  if (!Number.isFinite(amount)) return '0 ₺';
+  return `${amount} ₺`;
 }
 
 export async function fetchUserSalesPage(input: {

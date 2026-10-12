@@ -52,6 +52,11 @@ export const HOME_EVENT_CARD_SCALE = 1;
 export const CARD_META_SIZE = 12;
 export const CARD_PRICE_SIZE = 12;
 
+/** Fiyat + Satın Al aynı satır yüksekliği → dikeyde aynı hiza */
+const FOOTER_LINE_HEIGHT = Math.round(
+  Math.max(CARD_PRICE_SIZE, COMPACT.buySize) * 1.3,
+);
+
 export function getHomeEventCardWidth(
   _screenWidth?: number,
   _isTablet?: boolean,
@@ -207,7 +212,11 @@ export default function HomeEventCard({
           ) : (
             <View />
           )}
-          <Text style={styles.buyLabel}>{t("buy")}</Text>
+          <View style={styles.buyBox}>
+            <Text style={styles.buyLabel} numberOfLines={1}>
+              {t("buy")}
+            </Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -330,7 +339,7 @@ const styles = StyleSheet.create({
     marginTop: "auto",
     paddingTop: 4,
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
   },
@@ -351,13 +360,23 @@ const styles = StyleSheet.create({
     color: AppColors.heading,
     fontFamily: "PoppinsBold",
     fontSize: CARD_PRICE_SIZE,
+    lineHeight: FOOTER_LINE_HEIGHT,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+  /** pricePill ile aynı dikey padding → iki kutu aynı yükseklikte */
+  buyBox: {
+    flexShrink: 0,
+    paddingVertical: 5,
+    justifyContent: "center",
   },
   buyLabel: {
     color: AppColors.accent,
     fontFamily: "PoppinsBold",
     fontSize: COMPACT.buySize,
-    flexShrink: 0,
-    marginTop: 1,
+    lineHeight: FOOTER_LINE_HEIGHT,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   skeleton: {
     backgroundColor: "#E8ECF0",

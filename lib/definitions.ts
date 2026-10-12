@@ -17,6 +17,20 @@ export type SubcategoryItem = {
   order: number;
 };
 
+/** "Mekan" → "Mekân" (sunucudaki kategori adları şapkasız girilmiş olabilir; "mekanik" gibi kelimelere dokunmaz) */
+function withCircumflex(text: string): string {
+  return text
+    .replace(/\b([Mm])ekan(?!ik)/g, '$1ekân')
+    .replace(/\bMEKAN(?!IK)/g, 'MEKÂN');
+}
+
+function rowLabel(row: Record<string, unknown>): string {
+  const raw =
+    pickLocalizedText(row.name) ||
+    (typeof row.name === 'string' ? row.name : String(row.id ?? ''));
+  return withCircumflex(raw);
+}
+
 let cachedCategories: CategoryItem[] | null = null;
 let cachedSubcategories: SubcategoryItem[] | null = null;
 let cachedVenueCategories: CategoryItem[] | null = null;
@@ -31,9 +45,7 @@ export async function fetchCategories(refresh = false): Promise<CategoryItem[]> 
     .map((row) => ({
       id: String(row.id ?? ''),
       value: String(row.id ?? ''),
-      label:
-        pickLocalizedText(row.name) ||
-        (typeof row.name === 'string' ? row.name : String(row.id ?? '')),
+      label: rowLabel(row),
       order: Number(row.order ?? 0),
       icon: row.icon ?? null,
     }))
@@ -59,9 +71,7 @@ export async function fetchBrowsableCategories(
     .map((row) => ({
       id: String(row.id ?? ''),
       value: String(row.id ?? ''),
-      label:
-        pickLocalizedText(row.name) ||
-        (typeof row.name === 'string' ? row.name : String(row.id ?? '')),
+      label: rowLabel(row),
       order: Number(row.order ?? 0),
       icon: row.icon ?? null,
     }))
@@ -81,9 +91,7 @@ export async function fetchSubcategories(
     .map((row) => ({
       id: String(row.id ?? ''),
       value: String(row.id ?? ''),
-      label:
-        pickLocalizedText(row.name) ||
-        (typeof row.name === 'string' ? row.name : String(row.id ?? '')),
+      label: rowLabel(row),
       categoryId: String(row.category ?? ''),
       order: Number(row.order ?? 0),
     }))
@@ -105,9 +113,7 @@ export async function fetchVenueCategories(
     .map((row) => ({
       id: String(row.id ?? ''),
       value: String(row.id ?? ''),
-      label:
-        pickLocalizedText(row.name) ||
-        (typeof row.name === 'string' ? row.name : String(row.id ?? '')),
+      label: rowLabel(row),
       order: Number(row.order ?? 0),
     }))
     .filter((c) => c.id)

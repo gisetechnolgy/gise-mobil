@@ -45,6 +45,42 @@ export default function DetailActionButton({
   );
 }
 
+/** Dolgu yok: marka rengi çerçeve + marka rengi ikon; seçiliyse ikon dolu (activeIcon) */
+export function DetailIconButton({
+  icon,
+  activeIcon,
+  label,
+  onPress,
+  active = false,
+  compact = false,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  activeIcon?: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  active?: boolean;
+  /** Meta satırı içinde (kategori yanı) küçük boy */
+  compact?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      style={[styles.iconBtn, compact && styles.iconBtnCompact]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      hitSlop={6}
+    >
+      <Ionicons
+        name={active && activeIcon ? activeIcon : icon}
+        size={compact ? 16 : 18}
+        color={DETAIL_ACCENT}
+      />
+    </TouchableOpacity>
+  );
+}
+
 export function DetailActionsRow({ children }: { children: React.ReactNode }) {
   return <View style={styles.row}>{children}</View>;
 }
@@ -83,5 +119,20 @@ const styles = StyleSheet.create({
   },
   labelSecondary: {
     color: DETAIL_ACCENT,
+  },
+  iconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: DETAIL_ACCENT,
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconBtnCompact: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
   },
 });

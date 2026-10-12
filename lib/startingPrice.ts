@@ -167,7 +167,7 @@ export async function enrichEventsWithPriceInfo<
 }
 
 export function formatPriceTl(price: number): string {
-  return `${Math.round(price).toLocaleString('tr-TR')} TL`;
+  return `${Math.round(price).toLocaleString('tr-TR')} ₺`;
 }
 
 /** Web ana sayfa kartları — ₺1.250 */
@@ -175,13 +175,16 @@ export function formatHomePriceAmount(price: number): string {
   return `₺${Math.round(price).toLocaleString('tr-TR')}`;
 }
 
+function formatRangeNumber(price: number): string {
+  return String(Math.round(price)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 function formatRangeAmount(price: number): string {
-  const grouped = String(Math.round(price)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `${grouped} ₺`;
+  return `${formatRangeNumber(price)} ₺`;
 }
 
 /**
- * Kart fiyat etiketi: "2,750 ₺ - 4,500 ₺" (tek fiyatsa "2,750 ₺").
+ * Kart fiyat etiketi: "2,750 - 4,500 ₺" (tek fiyatsa "2,750 ₺").
  * Ücretsiz etkinlikte freeLabel döner; fiyat yoksa null.
  */
 export function formatPriceRangeLabel(
@@ -192,16 +195,19 @@ export function formatPriceRangeLabel(
   if (info.isFree) return freeLabel;
   const max = info.maxPrice ?? info.minPrice;
   if (max > info.minPrice) {
-    return `${formatRangeAmount(info.minPrice)} - ${formatRangeAmount(max)}`;
+    return `${formatRangeNumber(info.minPrice)} - ${formatRangeAmount(max)}`;
   }
   return formatRangeAmount(info.minPrice);
 }
 
-/** Satın alma / ödeme ekranları için 2 haneli fiyat (ör. 8,000.00 TL). */
+/** Satın alma / ödeme ekranları için 2 haneli fiyat (ör. 8,000.00 ₺). */
+/** 40000 → "40,000 ₺"; kurus sadece tutar tam sayi degilse gosterilir (12.5 → "12.50 ₺"). */
 export function formatMoneyTl(price: number): string {
   const value = Number.isFinite(price) ? price : 0;
+  const hasFraction = Math.round(value * 100) % 100 !== 0;
+  const digits = hasFraction ? 2 : 0;
   return `${value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} TL`;
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })} ₺`;
 }

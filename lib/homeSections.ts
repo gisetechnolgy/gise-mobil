@@ -131,46 +131,47 @@ async function resolveSectionEvents(
     .filter((row): row is { index: number; entry: Record<string, unknown> } => row != null)
     .sort((a, b) => a.index - b.index);
 
-  const resolved: HomeSectionEvent[] = [];
+  const resolved = await Promise.all(
+    entries.map(async ({ entry: row }): Promise<HomeSectionEvent | null> => {
+      const groupId =
+        typeof row.groupid === 'string' && row.groupid.trim()
+          ? row.groupid.trim()
+          : '';
+      const eventId =
+        typeof row.id === 'string' && row.id.trim() ? row.id.trim() : '';
 
-  for (const { entry: row } of entries) {
-    const groupId =
-      typeof row.groupid === 'string' && row.groupid.trim()
-        ? row.groupid.trim()
-        : '';
-    const eventId =
-      typeof row.id === 'string' && row.id.trim() ? row.id.trim() : '';
+      try {
+        let event: EventItem | null = null;
+        let isGroup = false;
 
-    try {
-      let event: EventItem | null = null;
-      let isGroup = false;
+        if (groupId) {
+          event = await fetchGroupEventById(groupId);
+          isGroup = !!event;
+        } else if (eventId) {
+          event = await fetchEventById(eventId, { forListing: true });
+        }
 
-      if (groupId) {
-        event = await fetchGroupEventById(groupId);
-        isGroup = !!event;
-      } else if (eventId) {
-        event = await fetchEventById(eventId, { forListing: true });
+        if (!event) return null;
+        if (isPastEvent(event)) return null;
+        if (event.hideFromMobileHome) return null;
+
+        const featuredImageUrl = pickImageSrc(row.featuredImage);
+        const enriched: HomeSectionEvent = {
+          ...event,
+          isGroup,
+          featuredImageUrl: isFeatured ? featuredImageUrl : null,
+          imageUrl:
+            isFeatured && featuredImageUrl ? featuredImageUrl : event.imageUrl,
+        };
+        return await enrichHomeEvent(enriched);
+      } catch {
+        /* tek slot hatası tüm section'ı düşürmesin */
+        return null;
       }
+    }),
+  );
 
-      if (!event) continue;
-      if (isPastEvent(event)) continue;
-      if (event.hideFromMobileHome) continue;
-
-      const featuredImageUrl = pickImageSrc(row.featuredImage);
-      const enriched: HomeSectionEvent = {
-        ...event,
-        isGroup,
-        featuredImageUrl: isFeatured ? featuredImageUrl : null,
-        imageUrl:
-          isFeatured && featuredImageUrl ? featuredImageUrl : event.imageUrl,
-      };
-      resolved.push(await enrichHomeEvent(enriched));
-    } catch {
-      /* tek slot hatası tüm section'ı düşürmesin */
-    }
-  }
-
-  return resolved;
+  return resolved.filter((e): e is HomeSectionEvent => e != null);
 }
 
 async function resolveSectionTitle(
@@ -183,14 +184,22 @@ async function resolveSectionTitle(
   return pickLocalizedText(row.title) || t('defaultEventsSection');
 }
 
+let cachedSections: HomeSection[] | null = null;
+
+export function getCachedHomeSections(): HomeSection[] | null {
+  return cachedSections;
+}
+
 export async function fetchHomeSections(): Promise<HomeSection[]> {
   const rows = await fetchCollection('homeSections');
 
   const sections = await Promise.all(
     rows.map(async (row) => {
       // Backend / CMS ne yolladıysa — ekstra slice/dedupe yok
-      const events = await resolveSectionEvents(row);
-      const title = await resolveSectionTitle(row);
+      const [events, title] = await Promise.all([
+        resolveSectionEvents(row),
+        resolveSectionTitle(row),
+      ]);
       const venueId =
         row.useVenue === true && row.venue != null
           ? String(row.venue)
@@ -217,7 +226,8 @@ export async function fetchHomeSections(): Promise<HomeSection[]> {
     }),
   );
 
-  return sections
+  cachedSections = sections
     .filter((s) => s.events.length > 0)
     .sort((a, b) => a.order - b.order);
+  return cachedSections;
 }

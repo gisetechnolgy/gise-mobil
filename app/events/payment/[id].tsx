@@ -618,7 +618,7 @@ export default function EventPaymentScreen() {
           </View>
         ) : null}
 
-        {!totalIsZero ? (
+        {!totalIsZero && doorcashAllowed ? (
           <View style={styles.card}>
             <Text style={styles.cardSectionTitle}>{t("paymentMethod")}</Text>
             <View style={styles.methodRow}>
@@ -636,22 +636,20 @@ export default function EventPaymentScreen() {
                   {t("creditCard")}
                 </Text>
               </TouchableOpacity>
-              {doorcashAllowed ? (
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => setPaymentMethod("doorcash")}
-                  style={[styles.methodBtn, isDoorcash && styles.methodBtnOn]}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setPaymentMethod("doorcash")}
+                style={[styles.methodBtn, isDoorcash && styles.methodBtnOn]}
+              >
+                <Text
+                  style={[
+                    styles.methodBtnText,
+                    isDoorcash && styles.methodBtnTextOn,
+                  ]}
                 >
-                  <Text
-                    style={[
-                      styles.methodBtnText,
-                      isDoorcash && styles.methodBtnTextOn,
-                    ]}
-                  >
-                    {t("payAtDoor")}
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
+                  {t("payAtDoor")}
+                </Text>
+              </TouchableOpacity>
             </View>
             {isDoorcash ? (
               <Text style={styles.methodHint}>{t("payAtDoorHint")}</Text>

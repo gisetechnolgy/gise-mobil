@@ -20,9 +20,6 @@ export function shouldShowAppTabBar(
 
   if (parts[0] && AUTH_ROUTES.has(parts[0])) return false;
 
-  // Destek: sohbet/form alanı tam ekran kullanır
-  if (parts.includes('support') || segments.includes('support')) return false;
-
   // Admin iç sayfaları (hub dışındaki stack)
   if (parts[0] === 'admin') return false;
 
@@ -53,7 +50,7 @@ function pathParts(pathname: string): string[] {
 export function resolveConsumerActiveTab(
   pathname: string,
   segments: string[] = [],
-): 'index' | 'events' | 'support' | 'profile' | null {
+): 'index' | 'events' | 'tickets' | 'support' | 'profile' | null {
   // Expo Router: group segment'leri pathname'de olmayabilir — segments daha güvenilir
   if (segments[0] === '(tabs)') {
     const tab = segments[1];
@@ -72,6 +69,7 @@ export function resolveConsumerActiveTab(
 
   if (parts.length === 0 || parts[0] === 'index') return 'index';
   if (parts[0] === 'events' && parts.length === 1) return 'events';
+  if (parts[0] === 'tickets') return 'tickets';
   if (parts[0] === 'support') return 'support';
   if (parts[0] === 'profile') return 'profile';
 

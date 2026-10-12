@@ -140,11 +140,21 @@ export async function fetchVenueById(id: string): Promise<VenueItem | null> {
   }
 }
 
+let venueMapInFlight: Promise<Map<string, VenueItem>> | null = null;
+
 export async function loadVenueMap(refresh = false): Promise<Map<string, VenueItem>> {
   if (venueMapCache && !refresh) return venueMapCache;
-  const venues = await fetchVenues();
-  venueMapCache = new Map(venues.map((v) => [v.id, v]));
-  return venueMapCache;
+  if (venueMapInFlight) return venueMapInFlight;
+  venueMapInFlight = (async () => {
+    try {
+      const venues = await fetchVenues();
+      venueMapCache = new Map(venues.map((v) => [v.id, v]));
+      return venueMapCache;
+    } finally {
+      venueMapInFlight = null;
+    }
+  })();
+  return venueMapInFlight;
 }
 
 export function enrichEventWithVenue(

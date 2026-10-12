@@ -27,10 +27,9 @@ export default function HomeScreen() {
     refreshNotifications,
   } = useNotificationsPanel();
   const { user, refreshUser, isAuthenticated } = useAuth();
-  const { refresh: refreshBranding, loading: brandingLoading } = useBranding();
+  const { refresh: refreshBranding } = useBranding();
   const [refreshing, setRefreshing] = useState(false);
   const [heroLoading, setHeroLoading] = useState(true);
-  const [sectionsLoading, setSectionsLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [headerHeight, setHeaderHeight] = useState(0);
@@ -45,16 +44,23 @@ export default function HomeScreen() {
     [router, tabGroup],
   );
 
-  useEffect(() => {
+  const hideSplash = useCallback(() => {
     if (splashHiddenRef.current) return;
-    if (brandingLoading || heroLoading || sectionsLoading) {
-      return;
-    }
     splashHiddenRef.current = true;
     void SplashScreen.hideAsync().catch(() => {
       /* Splash zaten gizli olabilir */
     });
-  }, [brandingLoading, heroLoading, sectionsLoading]);
+  }, []);
+
+  // Alt bölümler skeleton ile dolar; splash yalnızca üst hero'yu bekler.
+  useEffect(() => {
+    if (!heroLoading) hideSplash();
+  }, [heroLoading, hideSplash]);
+
+  useEffect(() => {
+    const timer = setTimeout(hideSplash, 4000);
+    return () => clearTimeout(timer);
+  }, [hideSplash]);
 
   useFocusEffect(
     useCallback(() => {
@@ -120,10 +126,7 @@ export default function HomeScreen() {
           ref={heroRef}
           onLoadingChange={setHeroLoading}
         />
-        <HomeSections
-          ref={homeSectionsRef}
-          onLoadingChange={setSectionsLoading}
-        />
+        <HomeSections ref={homeSectionsRef} />
       </ScrollView>
       <MobileSearchSheet
         visible={searchOpen}

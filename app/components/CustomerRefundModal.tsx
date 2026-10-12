@@ -206,7 +206,7 @@ export default function CustomerRefundModal({
                     <View style={styles.rowInfo}>
                       <Text style={styles.itemTitle}>{item.title}</Text>
                       <Text style={styles.muted}>
-                        {item.price} TL · max {item.available}
+                        {item.price} ₺ · max {item.available}
                       </Text>
                     </View>
                     <View style={styles.stepper}>
