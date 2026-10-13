@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useRouter, type Href } from "expo-router";
-import { Fragment, useCallback, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -34,6 +34,7 @@ import {
   enablePushNotifications,
   readPushNotificationsEnabled,
 } from "../../lib/push-notifications";
+import { getLoginMode, type WebLoginMode } from "../../lib/loginSettings";
 
 async function openOtherApps() {
   type SsoApp = { id?: string; name?: string; targetUrl: string };
@@ -85,13 +86,16 @@ export default function ProfileScreen() {
   useRequireAuth("/(tabs)/profile");
   const [loggingOut, setLoggingOut] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notificationBusy, setNotificationBusy] = useState(false);
   const [followedVenueCount, setFollowedVenueCount] = useState(0);
   const [followedCompanyCount, setFollowedCompanyCount] = useState(0);
   const [favouriteEventCount, setFavouriteEventCount] = useState(0);
+  const [loginMode, setLoginMode] = useState<WebLoginMode | null>(null);
+
+  useEffect(() => {
+    void getLoginMode().then(setLoginMode);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -164,33 +168,39 @@ export default function ProfileScreen() {
     }
   };
 
-  const accountItems: { icon: IconName; label: string; onPress: () => void }[] = [
-    {
-      icon: "person-outline",
-      label: t("profileDetails"),
-      onPress: () => router.push("/account/profile-details" as Href),
-    },
-    {
-      icon: "qr-code-outline",
-      label: t("myTickets"),
-      onPress: () => router.push("/tickets"),
-    },
-    {
-      icon: "card-outline",
-      label: t("paymentDetails"),
-      onPress: () => router.push("/account/payment-details" as Href),
-    },
-    {
-      icon: "lock-closed-outline",
-      label: t("changePassword"),
-      onPress: () => router.push("/account/change-password" as Href),
-    },
-    {
+  const accountItems = useMemo(() => {
+    const items: { icon: IconName; label: string; onPress: () => void }[] = [
+      {
+        icon: "person-outline",
+        label: t("profileDetails"),
+        onPress: () => router.push("/account/profile-details" as Href),
+      },
+      {
+        icon: "qr-code-outline",
+        label: t("myTickets"),
+        onPress: () => router.push("/tickets"),
+      },
+      {
+        icon: "card-outline",
+        label: t("paymentDetails"),
+        onPress: () => router.push("/account/payment-details" as Href),
+      },
+    ];
+    // Login v2 (OTP): şifre yok → Şifre Değiştir menüde görünmez
+    if (loginMode !== "otp") {
+      items.push({
+        icon: "lock-closed-outline",
+        label: t("changePassword"),
+        onPress: () => router.push("/account/change-password" as Href),
+      });
+    }
+    items.push({
       icon: "apps-outline",
       label: t("otherApps"),
       onPress: () => void openOtherApps(),
-    },
-  ];
+    });
+    return items;
+  }, [loginMode, router, t]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -251,27 +261,34 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.statsRow}>
-          <StatItem
-            count={favouriteEventCount}
-            label={t("events")}
-            onPress={() => router.push("/favourite-events" as Href)}
-            isTablet={isTablet}
-          />
-          <View style={styles.statDivider} />
-          <StatItem
-            count={followedVenueCount}
-            label={t("venues")}
-            onPress={() => router.push("/followed-venues" as Href)}
-            isTablet={isTablet}
-          />
-          <View style={styles.statDivider} />
-          <StatItem
-            count={followedCompanyCount}
-            label={t("companies")}
-            onPress={() => router.push("/followed-companies" as Href)}
-            isTablet={isTablet}
-          />
+        <View style={styles.statsSection}>
+          <Text
+            style={[styles.statsSectionTitle, isTablet && styles.statsSectionTitleTablet]}
+          >
+            {t("favouritesAndFollowing")}
+          </Text>
+          <View style={styles.statsRow}>
+            <StatItem
+              count={favouriteEventCount}
+              label={t("events")}
+              onPress={() => router.push("/favourite-events" as Href)}
+              isTablet={isTablet}
+            />
+            <View style={styles.statDivider} />
+            <StatItem
+              count={followedVenueCount}
+              label={t("venues")}
+              onPress={() => router.push("/followed-venues" as Href)}
+              isTablet={isTablet}
+            />
+            <View style={styles.statDivider} />
+            <StatItem
+              count={followedCompanyCount}
+              label={t("companies")}
+              onPress={() => router.push("/followed-companies" as Href)}
+              isTablet={isTablet}
+            />
+          </View>
         </View>
 
         <View style={styles.group}>
@@ -314,15 +331,6 @@ export default function ProfileScreen() {
             label={t("logout")}
             onPress={() => setShowLogoutConfirm(true)}
             isTablet={isTablet}
-            hideChevron
-          />
-          <View style={styles.divider} />
-          <MenuRow
-            icon="trash-outline"
-            label={t("deleteAccount")}
-            onPress={() => setShowDeleteConfirm(true)}
-            isTablet={isTablet}
-            danger
             hideChevron
           />
         </View>
@@ -373,65 +381,6 @@ export default function ProfileScreen() {
         </Pressable>
       </Modal>
 
-      <Modal
-        transparent
-        animationType="fade"
-        visible={showDeleteConfirm}
-        onRequestClose={() => setShowDeleteConfirm(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowDeleteConfirm(false)}
-        >
-          <Pressable style={styles.modalCard} onPress={() => {}}>
-            <Text style={styles.modalTitle}>{t("deleteAccountTitle")}</Text>
-            <Text style={styles.modalText}>
-              {t("deleteAccountConfirm")}
-            </Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalSecondaryBtn}
-                onPress={() => setShowDeleteConfirm(false)}
-              >
-                <Text style={styles.modalSecondaryText}>{t("no")}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalPrimaryBtn}
-                onPress={() => {
-                  setShowDeleteConfirm(false);
-                  setShowDeleteSuccess(true);
-                }}
-              >
-                <Text style={styles.modalPrimaryText}>{t("yes")}</Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal
-        transparent
-        animationType="fade"
-        visible={showDeleteSuccess}
-        onRequestClose={() => setShowDeleteSuccess(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowDeleteSuccess(false)}
-        >
-          <Pressable style={styles.modalCard} onPress={() => {}}>
-            <Text style={styles.modalTextSuccess}>
-              {t("deleteAccountSuccess")}
-            </Text>
-            <TouchableOpacity
-              style={styles.modalOkBtn}
-              onPress={() => setShowDeleteSuccess(false)}
-            >
-              <Text style={styles.modalPrimaryText}>{t("ok")}</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -611,6 +560,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  statsSection: {
+    gap: 8,
+  },
+  statsSectionTitle: {
+    fontFamily: "PoppinsSemiBold",
+    fontSize: 14,
+    color: AppColors.heading,
+    paddingHorizontal: 2,
+  },
+  statsSectionTitleTablet: {
+    fontSize: 16,
+  },
   statsRow: {
     flexDirection: "row",
     alignItems: "center",

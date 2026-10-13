@@ -2,6 +2,9 @@
 
 export const DETAIL_ACCENT = '#AE256D';
 export const DETAIL_ICON = '#1A1A1A';
+/** Tarih / mekan meta ikonları — web detail-img-container ile aynı */
+export const DETAIL_META_ICON = '#D12A82';
+export const DETAIL_META_ICON_BG = 'rgba(214,41,130,0.12)';
 export const DETAIL_PAGE_BG = '#EFEFEF';
 export const DETAIL_CARD_RADIUS = 14;
 /** Sticky bar kabaca (safe area hariç) — venue/org scroll pad */

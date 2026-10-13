@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import RulesIcon from "../../assets/icons/Rules icon 3.svg";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { AppColors } from "../../constants/colors";
@@ -361,10 +362,13 @@ export default function EventDetailScreen() {
 
                   {hasRules ? (
                     <DetailCard>
-                      {!detailsPlain ? (
-                        <Text style={styles.cardTitle}>{t("thingsToKnow")}</Text>
-                      ) : null}
-                      <View style={{ gap: 8, marginTop: !detailsPlain ? 4 : 0 }}>
+                      <View style={styles.rulesTitleRow}>
+                        <RulesIcon width={20} height={20} />
+                        <Text style={styles.cardTitle}>
+                          {t("eventRulesHeading")}
+                        </Text>
+                      </View>
+                      <View style={{ gap: 8, marginTop: 4 }}>
                         {ageRuleText || couplesRuleText ? (
                           <View style={styles.chipPair}>
                             {ageRuleText ? (
@@ -407,9 +411,13 @@ export default function EventDetailScreen() {
                             onPress={() => setDetailsOpen((v) => !v)}
                             activeOpacity={0.8}
                           >
-                            <Text style={styles.accordionTitle}>
-                              {t("thingsToKnow")}
-                            </Text>
+                            {!detailsOpen ? (
+                              <Text style={styles.accordionToggle}>
+                                {t("showMore")}
+                              </Text>
+                            ) : (
+                              <View style={{ flex: 1 }} />
+                            )}
                             <View style={styles.chevronBox}>
                               <Ionicons
                                 name={
@@ -512,8 +520,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  cardTitle: {
+  rulesTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     marginBottom: 10,
+  },
+  cardTitle: {
+    flex: 1,
+    marginBottom: 0,
     fontFamily: "PoppinsBold",
     fontSize: 16,
     color: "#0F2137",
@@ -583,6 +598,12 @@ const styles = StyleSheet.create({
     fontFamily: "PoppinsBold",
     fontSize: 15,
     color: "#0F2137",
+  },
+  accordionToggle: {
+    flex: 1,
+    fontFamily: "PoppinsSemiBold",
+    fontSize: 13,
+    color: "#6B7280",
   },
   chevronBox: {
     width: 28,

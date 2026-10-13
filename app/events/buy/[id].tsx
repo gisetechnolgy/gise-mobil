@@ -14,6 +14,10 @@ import {
 } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { AppColors } from "../../../constants/colors";
+import {
+  DETAIL_META_ICON,
+  DETAIL_META_ICON_BG,
+} from "../../../constants/mobileDetail";
 import { formatCityLabel } from "../../../lib/cities";
 import {
   EventItem,
@@ -140,33 +144,41 @@ function SelectableProductRow({
             <Text style={styles.downPaymentLabel}>{t("downpayment")}</Text>
           ) : null}
         </View>
-        <View style={styles.stepper}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            disabled={!canDecrease}
-            onPress={() => onChangeQuantity(Math.max(0, quantity - 1))}
-            style={[
-              styles.stepperBtn,
-              !canDecrease && styles.stepperBtnDisabled,
-            ]}
-          >
-            <Ionicons name="remove" size={16} color="#374151" />
-          </TouchableOpacity>
-          <Text style={[styles.stepperValue, isTablet && styles.stepperValueTablet]}>
-            {quantity}
-          </Text>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            disabled={!canIncrease}
-            onPress={() => onChangeQuantity(Math.min(maxQty, quantity + 1))}
-            style={[
-              styles.stepperBtn,
-              !canIncrease && styles.stepperBtnDisabled,
-            ]}
-          >
-            <Ionicons name="add" size={16} color="#374151" />
-          </TouchableOpacity>
-        </View>
+        {product.soldOut ? (
+          <View style={styles.soldOutBtn}>
+            <Text style={styles.soldOutBtnText}>{soldOutLabel}</Text>
+          </View>
+        ) : (
+          <View style={styles.stepper}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              disabled={!canDecrease}
+              onPress={() => onChangeQuantity(Math.max(0, quantity - 1))}
+              style={[
+                styles.stepperBtn,
+                styles.stepperBtnMinus,
+                !canDecrease && styles.stepperBtnDisabled,
+              ]}
+            >
+              <Ionicons name="remove" size={16} color="#374151" />
+            </TouchableOpacity>
+            <Text style={[styles.stepperValue, isTablet && styles.stepperValueTablet]}>
+              {quantity}
+            </Text>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              disabled={!canIncrease}
+              onPress={() => onChangeQuantity(Math.min(maxQty, quantity + 1))}
+              style={[
+                styles.stepperBtn,
+                styles.stepperBtnPlus,
+                !canIncrease && styles.stepperBtnDisabled,
+              ]}
+            >
+              <Ionicons name="add" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -332,11 +344,13 @@ export default function EventBuyScreen() {
                 </Text>
                 {!!locationText && (
                   <View style={styles.metaRow}>
-                    <Ionicons
-                      name="location"
-                      size={14}
-                      color={AppColors.cardText}
-                    />
+                    <View style={styles.metaIcon}>
+                      <Ionicons
+                        name="location-outline"
+                        size={15}
+                        color={DETAIL_META_ICON}
+                      />
+                    </View>
                     <Text
                       style={[styles.metaText, isTablet && styles.metaTextTablet]}
                       numberOfLines={2}
@@ -347,11 +361,13 @@ export default function EventBuyScreen() {
                 )}
                 {!!event.startsAt && (
                   <View style={styles.metaRow}>
-                    <Ionicons
-                      name="calendar"
-                      size={14}
-                      color={AppColors.cardText}
-                    />
+                    <View style={styles.metaIcon}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={15}
+                        color={DETAIL_META_ICON}
+                      />
+                    </View>
                     <Text
                       style={[styles.metaText, isTablet && styles.metaTextTablet]}
                       numberOfLines={2}
@@ -695,29 +711,56 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   stepper: {
+    width: 104,
+    height: 38,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    justifyContent: "space-between",
+    padding: 4,
     borderRadius: 10,
-    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFFFFF",
   },
   stepperBtn: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    backgroundColor: "#FFFFFF",
+    borderRadius: 7,
     alignItems: "center",
     justifyContent: "center",
   },
+  stepperBtnMinus: {
+    backgroundColor: "#F3F4F6",
+  },
+  stepperBtnPlus: {
+    backgroundColor: AppColors.accent,
+  },
   stepperBtnDisabled: {
-    opacity: 0.35,
+    opacity: 0.4,
+  },
+  soldOutBtn: {
+    width: 104,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "#D9DCE1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  soldOutBtnText: {
+    color: "#FFFFFF",
+    fontFamily: "PoppinsBold",
+    fontSize: 13,
+  },
+  metaIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: DETAIL_META_ICON_BG,
+    alignItems: "center",
+    justifyContent: "center",
   },
   stepperValue: {
-    minWidth: 40,
+    flex: 1,
     textAlign: "center",
     color: "#0F2137",
     fontFamily: "PoppinsBold",

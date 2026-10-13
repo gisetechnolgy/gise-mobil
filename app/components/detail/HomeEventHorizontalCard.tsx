@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { AppColors } from "../../../constants/colors";
@@ -21,6 +22,10 @@ import { AppText as Text } from "@/components/ui/AppText";
 const FOOTER_LINE_HEIGHT = Math.round(
   Math.max(LIST_CARD.priceSize, LIST_CARD.buySize) * 1.3,
 );
+
+const META_ICON_SIZE = LIST_CARD.metaSize + 2;
+/** Feather ikonlarının iç boşluğu (3/24) telafi — ikon başlığın ilk harfiyle aynı çizgide */
+const META_ICON_OFFSET = -Math.round((META_ICON_SIZE * 3) / 24);
 
 type Props = {
   event: EventItem & {
@@ -105,7 +110,6 @@ export default function HomeEventHorizontalCard({
           {
             paddingHorizontal: LIST_CARD.textPad,
             paddingVertical: LIST_CARD.textPadY,
-            gap: LIST_CARD.lineGap,
           },
         ]}
       >
@@ -116,39 +120,60 @@ export default function HomeEventHorizontalCard({
         >
           {event.title}
         </Text>
-        {dateTime ? (
-          <Text
-            style={[styles.meta, { fontSize: LIST_CARD.metaSize }]}
-            numberOfLines={1}
-          >
-            {dateTime}
-          </Text>
-        ) : null}
-        {venueLabel ? (
-          <Text
-            style={[styles.meta, { fontSize: LIST_CARD.metaSize }]}
-            numberOfLines={1}
-          >
-            {venueLabel}
-          </Text>
-        ) : null}
+        {/* Başlık | tarih-mekan | çizgi | fiyat — aradaki boşluklar eşit (space-between) */}
+        <View style={[styles.metaBlock, { gap: LIST_CARD.lineGap }]}>
+          {dateTime ? (
+            <View style={styles.metaRow}>
+              <Feather
+                name="calendar"
+                size={META_ICON_SIZE}
+                color={AppColors.accent}
+                style={styles.metaIcon}
+              />
+              <Text
+                style={[styles.meta, { fontSize: LIST_CARD.metaSize }]}
+                numberOfLines={1}
+              >
+                {dateTime}
+              </Text>
+            </View>
+          ) : null}
+          {venueLabel ? (
+            <View style={styles.metaRow}>
+              <Feather
+                name="map-pin"
+                size={META_ICON_SIZE}
+                color={AppColors.accent}
+                style={styles.metaIcon}
+              />
+              <Text
+                style={[styles.meta, { fontSize: LIST_CARD.metaSize }]}
+                numberOfLines={1}
+              >
+                {venueLabel}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.divider} />
         <View style={styles.footer}>
           {priceLabel ? (
             <View style={styles.priceLine}>
-              <View style={styles.pricePill}>
-                <Text
-                  style={[
-                    styles.price,
-                    {
-                      fontSize: LIST_CARD.priceSize,
-                      lineHeight: FOOTER_LINE_HEIGHT,
-                    },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {priceLabel}
-                </Text>
-              </View>
+              <Text style={styles.priceCaption} numberOfLines={1}>
+                {t("ticketPriceLabel")}
+              </Text>
+              <Text
+                style={[
+                  styles.price,
+                  {
+                    fontSize: LIST_CARD.priceSize,
+                    lineHeight: FOOTER_LINE_HEIGHT,
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {priceLabel}
+              </Text>
             </View>
           ) : (
             <View style={{ flex: 1 }} />
@@ -166,6 +191,7 @@ export default function HomeEventHorizontalCard({
             >
               {t("buy")}
             </Text>
+            <Feather name="chevron-right" size={12} color="#FFFFFF" />
           </View>
         </View>
       </View>
@@ -194,22 +220,42 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     minWidth: 0,
-    justifyContent: "flex-start",
+    /** title | meta | footer — tarih/mekan üst-alt boşluk eşit */
+    justifyContent: "space-between",
   },
   title: {
     fontFamily: "PoppinsBold",
     color: AppColors.heading,
-    lineHeight: 16,
+    lineHeight: Math.round(LIST_CARD.titleSize * 1.25),
+    textTransform: "uppercase",
+  },
+  metaBlock: {
+    flexShrink: 0,
+    minWidth: 0,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  metaIcon: {
+    marginLeft: META_ICON_OFFSET,
   },
   meta: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: "PoppinsRegular",
-    color: "#808080",
+    color: "#4B5563",
+    lineHeight: Math.round(LIST_CARD.metaSize * 1.25),
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#EDEDED",
   },
   footer: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: 8,
-    marginTop: "auto",
   },
   priceLine: {
     flex: 1,
@@ -217,28 +263,31 @@ const styles = StyleSheet.create({
     minWidth: 0,
     alignItems: "flex-start",
   },
-  pricePill: {
-    maxWidth: "100%",
-    backgroundColor: "#e6e6e6",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+  priceCaption: {
+    color: "#6B7280",
+    fontFamily: "PoppinsRegular",
+    fontSize: LIST_CARD.metaSize - 2,
+    lineHeight: Math.round((LIST_CARD.metaSize - 2) * 1.3),
   },
   price: {
     fontFamily: "PoppinsBold",
-    color: AppColors.heading,
+    color: AppColors.accent,
     includeFontPadding: false,
     textAlignVertical: "center",
   },
-  /** pricePill ile aynı dikey padding → iki kutu aynı yükseklikte */
   buyBox: {
     flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    backgroundColor: AppColors.accent,
+    borderRadius: 8,
+    paddingHorizontal: 10,
     paddingVertical: 5,
-    justifyContent: "center",
   },
   buy: {
     fontFamily: "PoppinsBold",
-    color: AppColors.accent,
+    color: "#FFFFFF",
     includeFontPadding: false,
     textAlignVertical: "center",
   },

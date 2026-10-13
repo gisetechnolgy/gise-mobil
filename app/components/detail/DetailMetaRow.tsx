@@ -5,7 +5,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { DETAIL_ICON } from "../../../constants/mobileDetail";
+import {
+  DETAIL_ICON,
+  DETAIL_META_ICON,
+  DETAIL_META_ICON_BG,
+} from "../../../constants/mobileDetail";
 import { AppText as Text } from "@/components/ui/AppText";
 
 type Props = {
@@ -21,7 +25,7 @@ export default function DetailMetaRow({ icon, label, href, onPress }: Props) {
   const content = (
     <View style={styles.row}>
       <View style={styles.iconSlot}>
-        <Ionicons name={icon} size={15} color={DETAIL_ICON} />
+        <Ionicons name={icon} size={15} color={DETAIL_META_ICON} />
       </View>
       <Text style={styles.label} numberOfLines={1}>
         {label}
@@ -59,7 +63,10 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   iconSlot: {
-    width: 18,
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: DETAIL_META_ICON_BG,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,

@@ -8,11 +8,11 @@ import {
   Platform,
   StatusBar as RNStatusBar,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
   type LayoutChangeEvent,
+  type TextInput as TextInputType,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -25,6 +25,7 @@ import { fetchBrowsableCategories, type CategoryItem } from "../../lib/definitio
 import { usePlatformLogoSource } from "../context/BrandingContext";
 import { useTranslation } from "../context/_LocaleContext";
 import { AppText as Text } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 import { SiteIcon } from "@/components/icons/SiteIcon";
 import CategoriesDrawer from "./CategoriesDrawer";
 import Hamburger from "./HamburgerIcon";
@@ -62,7 +63,7 @@ export default function MobileHomeHeader({
   const navScale = useMemo(() => getNavControlScale(screenWidth), [screenWidth]);
   const platformLogo = usePlatformLogoSource();
   const { t } = useTranslation();
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputType>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const categoriesAnim = useRef(new Animated.Value(0)).current;
@@ -255,7 +256,7 @@ export default function MobileHomeHeader({
             },
           ]}
         >
-          <TextInput
+          <AppTextInput
             ref={inputRef}
             value={searchQuery}
             onChangeText={(v) => {
@@ -384,6 +385,7 @@ const styles = StyleSheet.create({
     color: "#1A1A1A",
     paddingVertical: 0,
     marginRight: 8,
+    letterSpacing: 0,
   },
   clearBtn: {
     width: 28,

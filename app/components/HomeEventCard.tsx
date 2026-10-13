@@ -1,4 +1,4 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { AppColors } from "../../constants/colors";
@@ -7,6 +7,7 @@ import {
   EVENT_CARD_SHADOW,
   HOME_SECTION_CARD_IMAGE_ASPECT,
 } from "../../constants/homeSection";
+import { CARD_TEXT } from "../../constants/homeSectionList";
 import {
   EventItem,
   eventImageCacheKey,
@@ -48,14 +49,18 @@ type Props = {
 
 export const HOME_EVENT_CARD_SCALE = 1;
 
-/** Web mobil (compact) kartla aynı — hero kart da bunları kullanır */
-export const CARD_META_SIZE = 12;
-export const CARD_PRICE_SIZE = 12;
+/** Kart 1 + kart 2 ortak tipografi — hero kart da bunları kullanır */
+export const CARD_META_SIZE = CARD_TEXT.metaSize;
+export const CARD_PRICE_SIZE = CARD_TEXT.priceSize;
 
 /** Fiyat + Satın Al aynı satır yüksekliği → dikeyde aynı hiza */
 const FOOTER_LINE_HEIGHT = Math.round(
   Math.max(CARD_PRICE_SIZE, COMPACT.buySize) * 1.3,
 );
+
+const META_ICON_SIZE = CARD_META_SIZE + 2;
+/** Feather ikonlarının iç boşluğu (3/24) telafi — ikon başlığın ilk harfiyle aynı çizgide */
+const META_ICON_OFFSET = -Math.round((META_ICON_SIZE * 3) / 24);
 
 export function getHomeEventCardWidth(
   _screenWidth?: number,
@@ -190,24 +195,45 @@ export default function HomeEventCard({
           </Text>
         </View>
         {dateTimeLabel ? (
-          <Text style={styles.meta} numberOfLines={1}>
-            {dateTimeLabel}
-          </Text>
+          <View style={styles.metaRow}>
+            <Feather
+              name="calendar"
+              size={META_ICON_SIZE}
+              color={AppColors.accent}
+              style={styles.metaIcon}
+            />
+            <Text style={styles.meta} numberOfLines={1}>
+              {dateTimeLabel}
+            </Text>
+          </View>
         ) : null}
         {venueLabel ? (
-          <Text style={styles.meta} numberOfLines={1}>
-            {venueLabel}
-          </Text>
+          <View style={styles.metaRow}>
+            <Feather
+              name="map-pin"
+              size={META_ICON_SIZE}
+              color={AppColors.accent}
+              style={styles.metaIcon}
+            />
+            <Text style={styles.meta} numberOfLines={1}>
+              {venueLabel}
+            </Text>
+          </View>
         ) : null}
+
+        <View style={styles.dividerWrap}>
+          <View style={styles.divider} />
+        </View>
 
         <View style={styles.footer}>
           {priceLabel ? (
             <View style={styles.priceLine}>
-              <View style={styles.pricePill}>
-                <Text style={styles.priceAmount} numberOfLines={1}>
-                  {priceLabel}
-                </Text>
-              </View>
+              <Text style={styles.priceCaption} numberOfLines={1}>
+                {t("ticketPriceLabel")}
+              </Text>
+              <Text style={styles.priceAmount} numberOfLines={1}>
+                {priceLabel}
+              </Text>
             </View>
           ) : (
             <View />
@@ -216,6 +242,7 @@ export default function HomeEventCard({
             <Text style={styles.buyLabel} numberOfLines={1}>
               {t("buy")}
             </Text>
+            <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
           </View>
         </View>
       </View>
@@ -273,6 +300,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#FFFFFF",
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
   },
   cover: {
     width: "100%",
@@ -323,23 +352,42 @@ const styles = StyleSheet.create({
     fontFamily: "PoppinsBold",
     fontSize: COMPACT.titleSize,
     lineHeight: Math.round(COMPACT.titleSize * 1.25),
+    textTransform: "uppercase",
   },
   /** Her zaman 2 satır yer (sabit kart boyu); tek satırlık isim dikeyde ortalanır */
   titleBox: {
     height: Math.round(COMPACT.titleSize * 1.25) * 2,
     justifyContent: "center",
   },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  metaIcon: {
+    marginLeft: META_ICON_OFFSET,
+  },
   meta: {
-    color: "#808080",
+    flex: 1,
+    minWidth: 0,
+    color: "#4B5563",
     fontFamily: "PoppinsRegular",
     fontSize: CARD_META_SIZE,
     lineHeight: Math.round(CARD_META_SIZE * 1.25),
   },
+  /** Mekan ile fiyat arasındaki boşluğu doldurur; çizgi tam ortada → üst/alt mesafe eşit */
+  dividerWrap: {
+    flexGrow: 1,
+    minHeight: 8,
+    justifyContent: "center",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#EDEDED",
+  },
   footer: {
-    marginTop: "auto",
-    paddingTop: 4,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
     gap: 8,
   },
@@ -349,29 +397,32 @@ const styles = StyleSheet.create({
     minWidth: 0,
     alignItems: "flex-start",
   },
-  pricePill: {
-    maxWidth: "100%",
-    backgroundColor: "#e6e6e6",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+  priceCaption: {
+    color: "#6B7280",
+    fontFamily: "PoppinsRegular",
+    fontSize: CARD_META_SIZE - 2,
+    lineHeight: Math.round((CARD_META_SIZE - 2) * 1.3),
   },
   priceAmount: {
-    color: AppColors.heading,
+    color: AppColors.accent,
     fontFamily: "PoppinsBold",
     fontSize: CARD_PRICE_SIZE,
     lineHeight: FOOTER_LINE_HEIGHT,
     includeFontPadding: false,
     textAlignVertical: "center",
   },
-  /** pricePill ile aynı dikey padding → iki kutu aynı yükseklikte */
   buyBox: {
     flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    backgroundColor: AppColors.accent,
+    borderRadius: 8,
+    paddingHorizontal: 10,
     paddingVertical: 5,
-    justifyContent: "center",
   },
   buyLabel: {
-    color: AppColors.accent,
+    color: "#FFFFFF",
     fontFamily: "PoppinsBold",
     fontSize: COMPACT.buySize,
     lineHeight: FOOTER_LINE_HEIGHT,

@@ -1,6 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { usePathname, useRouter, useSegments, type Href } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Path } from "react-native-svg";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -31,8 +32,12 @@ import { useNotificationsPanel } from "../context/NotificationContext";
 import { useTranslation } from "../context/_LocaleContext";
 import { AppText as Text } from "@/components/ui/AppText";
 
+/** assets/icons/Destek.svg */
+const SUPPORT_ICON_PATH =
+  "M511.9,256C511.9,114.9,397.1,0.1,256,0.1S0.1,114.9,0.1,256c0,46,12.2,90.8,35.5,130.1L1,511l124.9-34.5c39.3,23.2,84.1,35.5,130.1,35.5C397.1,511.9,511.9,397.1,511.9,256z M216.7,196.4h-39.3c0-43.3,35.2-78.5,78.5-78.5s78.5,35.2,78.5,78.5c0,22-9.3,43.1-25.5,58l-33.4,30.5v30.6h-39.3v-47.9l46.1-42.2c8.2-7.5,12.8-17.8,12.8-29c0-21.7-17.6-39.3-39.3-39.3S216.7,174.8,216.7,196.4z M236.3,354.8h39.3v39.3h-39.3V354.8z";
+
 type TabConfig = {
-  iconFamily?: "ionicons" | "material";
+  iconFamily?: "ionicons" | "material" | "support";
   icon: string;
   labelKey: "home" | "events" | "support" | "profile" | "scanTicket" | "myTickets";
 };
@@ -68,11 +73,10 @@ const CONSUMER_TABS: TabDef[] = [
     name: "support",
     href: "/(tabs)/support" as Href,
     config: {
-      iconFamily: "ionicons",
-      icon: "help-circle",
+      iconFamily: "support",
+      icon: "support",
       labelKey: "support",
     },
-    iconBoost: 5,
   },
   {
     name: "profile",
@@ -108,6 +112,13 @@ function TabIcon({
   iconSize: number;
   iconColor: string;
 }) {
+  if (config.iconFamily === "support") {
+    return (
+      <Svg width={iconSize} height={iconSize} viewBox="0 0 512 512">
+        <Path d={SUPPORT_ICON_PATH} fill={iconColor} />
+      </Svg>
+    );
+  }
   if (config.iconFamily === "material") {
     return (
       <MaterialCommunityIcons

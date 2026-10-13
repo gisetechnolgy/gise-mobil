@@ -116,9 +116,14 @@ export default function RootLayout() {
         ...(TextComponent.defaultProps ?? {}),
         style: [{ fontFamily: 'PoppinsRegular' }, TextComponent.defaultProps?.style],
       };
+      // style verilince defaultProps.style yok sayılır → asıl çözüm AppTextInput.
+      // style'sız TextInput'lar için yine de letterSpacing: 0 koy.
       TextInputComponent.defaultProps = {
         ...(TextInputComponent.defaultProps ?? {}),
-        style: [{ fontFamily: 'PoppinsRegular' }, TextInputComponent.defaultProps?.style],
+        style: [
+          { fontFamily: 'PoppinsRegular', letterSpacing: 0 },
+          TextInputComponent.defaultProps?.style,
+        ],
       };
 
       const originalTextRender = TextComponent.render;

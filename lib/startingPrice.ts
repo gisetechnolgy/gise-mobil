@@ -176,7 +176,7 @@ export function formatHomePriceAmount(price: number): string {
 }
 
 function formatRangeNumber(price: number): string {
-  return String(Math.round(price)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return String(Math.round(price)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 function formatRangeAmount(price: number): string {
@@ -184,7 +184,7 @@ function formatRangeAmount(price: number): string {
 }
 
 /**
- * Kart fiyat etiketi: "2,750 - 4,500 ₺" (tek fiyatsa "2,750 ₺").
+ * Kart fiyat etiketi: "2.750 - 4.500 ₺" (tek fiyatsa "2.750 ₺").
  * Ücretsiz etkinlikte freeLabel döner; fiyat yoksa null.
  */
 export function formatPriceRangeLabel(
@@ -201,12 +201,12 @@ export function formatPriceRangeLabel(
 }
 
 /** Satın alma / ödeme ekranları için 2 haneli fiyat (ör. 8,000.00 ₺). */
-/** 40000 → "40,000 ₺"; kurus sadece tutar tam sayi degilse gosterilir (12.5 → "12.50 ₺"). */
+/** 40000 → "40.000 ₺"; kurus sadece tutar tam sayi degilse gosterilir (12.5 → "12,50 ₺"). */
 export function formatMoneyTl(price: number): string {
   const value = Number.isFinite(price) ? price : 0;
   const hasFraction = Math.round(value * 100) % 100 !== 0;
   const digits = hasFraction ? 2 : 0;
-  return `${value.toLocaleString('en-US', {
+  return `${value.toLocaleString('tr-TR', {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   })} ₺`;

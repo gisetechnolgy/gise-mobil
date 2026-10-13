@@ -10,11 +10,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppColors } from "../../constants/colors";
 import { useAuth } from "../context/AuthContext";
 import { useTranslation } from "../context/_LocaleContext";
@@ -67,7 +67,7 @@ function FieldCard({
       <Text style={[styles.fieldLabel, isTablet && styles.fieldLabelTablet]}>
         {label}
       </Text>
-      <TextInput
+      <AppTextInput
         value={value}
         onChangeText={onChangeText}
         editable={editable}
@@ -132,6 +132,8 @@ export default function ProfileDetailsScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   const [activeModal, setActiveModal] = useState<ModalKey>(null);
   const [dobDraft, setDobDraft] = useState({ day: "", month: "", year: "" });
   const [form, setForm] = useState<FormState>({
@@ -363,6 +365,15 @@ export default function ProfileDetailsScreen() {
                 <Text style={styles.saveBtnText}>{t("updateProfileDetails")}</Text>
               )}
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.deleteAccountBtn}
+              onPress={() => setShowDeleteConfirm(true)}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="trash-outline" size={16} color="#c53030" />
+              <Text style={styles.deleteAccountText}>{t("deleteAccount")}</Text>
+            </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
       )}
@@ -473,6 +484,64 @@ export default function ProfileDetailsScreen() {
               }}
             >
               <Text style={styles.saveBtnText}>{t("ok")}</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showDeleteConfirm}
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <Pressable
+          style={styles.confirmOverlay}
+          onPress={() => setShowDeleteConfirm(false)}
+        >
+          <Pressable style={styles.confirmCard} onPress={() => {}}>
+            <Text style={styles.confirmTitle}>{t("deleteAccountTitle")}</Text>
+            <Text style={styles.confirmText}>{t("deleteAccountConfirm")}</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={styles.confirmSecondaryBtn}
+                onPress={() => setShowDeleteConfirm(false)}
+              >
+                <Text style={styles.confirmSecondaryText}>{t("no")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmPrimaryBtn}
+                onPress={() => {
+                  setShowDeleteConfirm(false);
+                  setShowDeleteSuccess(true);
+                }}
+              >
+                <Text style={styles.confirmPrimaryText}>{t("yes")}</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showDeleteSuccess}
+        onRequestClose={() => setShowDeleteSuccess(false)}
+      >
+        <Pressable
+          style={styles.confirmOverlay}
+          onPress={() => setShowDeleteSuccess(false)}
+        >
+          <Pressable style={styles.confirmCard} onPress={() => {}}>
+            <Text style={styles.confirmSuccessText}>
+              {t("deleteAccountSuccess")}
+            </Text>
+            <TouchableOpacity
+              style={styles.confirmOkBtn}
+              onPress={() => setShowDeleteSuccess(false)}
+            >
+              <Text style={styles.confirmPrimaryText}>{t("ok")}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -608,5 +677,94 @@ const styles = StyleSheet.create({
     fontFamily: "PoppinsRegular",
     fontSize: 14,
     color: AppColors.heading,
+  },
+  deleteAccountBtn: {
+    marginTop: 20,
+    marginBottom: 8,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+  },
+  deleteAccountText: {
+    fontFamily: "PoppinsMedium",
+    fontSize: 14,
+    color: "#c53030",
+  },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 28,
+  },
+  confirmCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+  },
+  confirmTitle: {
+    fontFamily: "PoppinsSemiBold",
+    fontSize: 17,
+    color: AppColors.heading,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  confirmText: {
+    fontFamily: "PoppinsRegular",
+    fontSize: 14,
+    color: "#4B5563",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  confirmSuccessText: {
+    fontFamily: "PoppinsRegular",
+    fontSize: 14,
+    color: "#4B5563",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  confirmActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  confirmSecondaryBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmSecondaryText: {
+    fontFamily: "PoppinsSemiBold",
+    fontSize: 14,
+    color: AppColors.heading,
+  },
+  confirmPrimaryBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: AppColors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmOkBtn: {
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: AppColors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmPrimaryText: {
+    fontFamily: "PoppinsSemiBold",
+    fontSize: 14,
+    color: "#fff",
   },
 });

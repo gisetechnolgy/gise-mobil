@@ -2,9 +2,7 @@ import { router, type Href } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Linking,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -14,8 +12,8 @@ import { AppColors } from "../../constants/colors";
 import { ApiError } from "../../lib/api";
 import type { TranslationKey } from "../../lib/i18n";
 import { AppText as Text } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 
-const SUPPORT_URL = "https://destek.gisekibris.com";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Step = "start" | "emailCode" | "phoneAsk" | "smsCode";
@@ -94,9 +92,8 @@ export default function OtpLoginWizard({ redirectPath }: Props) {
     router.replace((redirectPath as Href) || ("/(tabs)" as Href));
   };
 
-  const openSupport = (subject?: string) => {
-    const q = subject ? `?subject=${encodeURIComponent(subject)}` : "";
-    void Linking.openURL(`${SUPPORT_URL}${q}`);
+  const openSupport = () => {
+    router.push("/(tabs)/support" as Href);
   };
 
   const run = async (fn: () => Promise<void>) => {
@@ -152,7 +149,7 @@ export default function OtpLoginWizard({ redirectPath }: Props) {
     void run(async () => {
       const res = await otpEmailUnavailable(email);
       if (!res.hasPhone) {
-        openSupport(t("otpSupportNoEmailAccess"));
+        openSupport();
         return;
       }
       setMaskedPhone(res.maskedPhone || "");
@@ -208,7 +205,7 @@ export default function OtpLoginWizard({ redirectPath }: Props) {
   const codeInput = (
     <View>
       <Text style={styles.label}>{t("otpCodeLabel")}</Text>
-      <TextInput
+      <AppTextInput
         value={code}
         onChangeText={(v) => {
           setCode(v.replace(/\D/g, "").slice(0, 6));
@@ -257,7 +254,7 @@ export default function OtpLoginWizard({ redirectPath }: Props) {
           <Text style={styles.sub}>{t("otpStartSubtitle")}</Text>
           <View>
             <Text style={styles.label}>{t("otpEmailLabel")}</Text>
-            <TextInput
+            <AppTextInput
               value={email}
               onChangeText={(v) => {
                 setEmail(v);

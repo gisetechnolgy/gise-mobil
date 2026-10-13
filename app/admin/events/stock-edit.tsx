@@ -4,7 +4,6 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -16,6 +15,7 @@ import {
 } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/_LocaleContext';
+import { AppTextInput } from '@/components/ui/AppTextInput';
 import { AppColors } from '../../../constants/colors';
 import { appRefreshControl } from '../../../lib/appRefreshControl';
 import {
@@ -126,7 +126,7 @@ function ProductEditPanel({
       <Text style={[styles.editFieldLabel, isTablet && styles.editFieldLabelTablet]}>
         Yeni Toplam Stok
       </Text>
-      <TextInput
+      <AppTextInput
         value={stockValue}
         onChangeText={setStockValue}
         keyboardType="number-pad"

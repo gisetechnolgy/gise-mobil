@@ -4,8 +4,38 @@ import {
   mapTicketRecord,
 } from './giseMappers';
 import { loadVenueMap } from './venues';
+import { fetchEventById } from './events';
 
-export type TicketItem = ReturnType<typeof mapTicketRecord>;
+export type TicketItem = ReturnType<typeof mapTicketRecord> & {
+  eventImageUrl?: string | null;
+};
+
+const eventImageCache = new Map<string, string | null>();
+
+/** Bilet kaydındaki etkinlik snapshot'ında görsel yok → etkinlikten çek (önbellekli) */
+async function enrichTicketEventImages(items: TicketItem[]): Promise<TicketItem[]> {
+  const missing = [
+    ...new Set(
+      items
+        .map((i) => i.eventId)
+        .filter((id): id is string => !!id && !eventImageCache.has(id)),
+    ),
+  ];
+  await Promise.all(
+    missing.map(async (id) => {
+      try {
+        const ev = await fetchEventById(id);
+        eventImageCache.set(id, ev.imageUrl || ev.bannerCardUrl || null);
+      } catch {
+        eventImageCache.set(id, null);
+      }
+    }),
+  );
+  return items.map((i) => ({
+    ...i,
+    eventImageUrl: i.eventId ? eventImageCache.get(i.eventId) ?? null : null,
+  }));
+}
 
 async function enrichTicketVenueNames<T extends { venueName: string | null }>(
   items: T[],
@@ -45,7 +75,9 @@ export async function fetchMyTickets(params?: {
   // satış noktası / yönetici satış modundan alınan biletler de kullanıcıya görünür.
   const items = (res.data ?? []).map((row) => mapTicketRecord(row));
 
-  const enriched = await enrichTicketVenueNames(items);
+  const enriched = await enrichTicketEventImages(
+    await enrichTicketVenueNames(items),
+  );
 
   const total = res.total ?? enriched.length;
   const serverHasMore = page * perPage < total;
@@ -55,6 +87,25 @@ export async function fetchMyTickets(params?: {
     page,
     hasMore: enriched.length === perPage && serverHasMore,
   };
+}
+
+/** Bilet üzerindeki isim (kalıcı). Hesap profilini değiştirmez. */
+export async function updateTicketHolderName(
+  ticketId: string,
+  fullName: string,
+): Promise<TicketItem> {
+  const trimmed = fullName.trim().replace(/\s+/g, ' ');
+  if (trimmed.length < 2) {
+    throw new Error('invalid-holder-name');
+  }
+  const raw = await api.put<Record<string, unknown>>(
+    `/tickets/${encodeURIComponent(ticketId)}/holder-name`,
+    { fullName: trimmed },
+    { auth: true },
+  );
+  const ticket = mapTicketRecord(raw);
+  const [enriched] = await enrichTicketVenueNames([ticket]);
+  return enriched ?? ticket;
 }
 
 export async function fetchTicketByPnr(pnr: string): Promise<TicketItem | null> {
@@ -110,16 +161,20 @@ export function formatTicketTime(iso?: string | null): string {
   }).format(d);
 }
 
-/** Liste / detay: İade Et butonu gösterilsin mi? (nihai kontrol refund-eligible API’de) */
+/**
+ * İade Et butonu: ürün iade edilebilir + iade süresi açık olmalı.
+ * API enrich (`refundEligible` = ürün refundable ∧ ürün/etkinlik son tarihi).
+ */
 export function canRequestTicketRefund(ticket: TicketItem): boolean {
   if (ticket.isUsed) return false;
   if (!ticket.saleId) return false;
   const ex = ticket.extras;
   if (ex.refunded || ex.refundProcessSuccess) return false;
   if (ex.refundPending || ex.refundRequested) return false;
-  // refundEligible list enrich’i prod’da snapshot’a takılabiliyor; butonu göster,
-  // ürün/etkinlik kapısını modal → /refund-eligible (canlı stok) karar verir.
-  return true;
+  if (ticket.eventRefundEnabled === false) return false;
+  if (ticket.productRefundable === false) return false;
+  // Ana kapı: API canlı stok + ürün/etkinlik iade tarihi
+  return ticket.refundEligible === true;
 }
 
 export function isTicketRefundDone(ticket: TicketItem): boolean {

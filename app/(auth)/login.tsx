@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View
 } from "react-native";
@@ -17,6 +16,7 @@ import { AppColors } from "../../constants/colors";
 import { ApiError } from "../../lib/api";
 import { getLoginMode, type WebLoginMode } from "../../lib/loginSettings";
 import { AppText as Text } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -128,7 +128,7 @@ export default function LoginScreen() {
         <OtpLoginWizard redirectPath={redirectPath} />
       ) : (
       <View style={styles.formBlock}>
-        <TextInput
+        <AppTextInput
           value={email}
           onChangeText={(v) => {
             setEmail(v);
@@ -142,7 +142,7 @@ export default function LoginScreen() {
           editable={!submitting}
           style={styles.input}
         />
-        <TextInput
+        <AppTextInput
           value={password}
           onChangeText={(v) => {
             setPassword(v);

@@ -9,7 +9,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -20,6 +19,7 @@ import { tabBarScrollPadding } from "../../constants/tabBar";
 import type { MediaUpload } from "../../lib/applications";
 import { useIsTablet } from "../../lib/responsive";
 import { AppText as Text } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 
 export function FormSectionTitle({ title }: { title: string }) {
   const isTablet = useIsTablet();
@@ -141,7 +141,7 @@ export function FormField({
       <Text style={[styles.fieldLabel, isTablet && styles.fieldLabelTablet]}>
         {label}
       </Text>
-      <TextInput
+      <AppTextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}

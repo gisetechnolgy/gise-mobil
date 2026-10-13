@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View
 } from "react-native";
@@ -12,6 +11,7 @@ import AuthScreenLayout from '../components/AuthScreenLayout';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/_LocaleContext';
 import { AppText as Text } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -78,7 +78,7 @@ export default function ForgotPasswordScreen() {
         </View>
       ) : (
         <View style={styles.formBlock}>
-          <TextInput
+          <AppTextInput
             value={email}
             onChangeText={setEmail}
             placeholder={t('email')}

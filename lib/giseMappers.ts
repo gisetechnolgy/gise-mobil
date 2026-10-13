@@ -243,6 +243,7 @@ export function mapTicketRecord(raw: Record<string, unknown>) {
     id: String(raw.id ?? pnr),
     ticketNo: pnr,
     qrData: pnr,
+    eventId: event?.id != null && String(event.id).trim() ? String(event.id) : null,
     eventTitle: event?.name != null ? String(event.name) : t('defaultEventTitle'),
     holderName: holderName || '—',
     holderEmail,

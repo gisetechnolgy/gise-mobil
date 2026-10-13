@@ -7,7 +7,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -18,6 +17,7 @@ import {
 } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { GarantiPaymentWebView } from "../../../components/GarantiPaymentWebView";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppColors } from "../../../constants/colors";
 import { useRequireAuth } from "../../../hooks/useRequireAuth";
 import {
@@ -592,7 +592,7 @@ export default function EventPaymentScreen() {
               </View>
             ) : (
               <View style={styles.couponRow}>
-                <TextInput
+                <AppTextInput
                   value={couponCode}
                   onChangeText={(v) => {
                     setCouponCode(v);
@@ -662,7 +662,7 @@ export default function EventPaymentScreen() {
           <Text style={styles.cardSectionTitle}>{t("cardPaymentDetails")}</Text>
 
           <Text style={styles.fieldLabel}>{t("cardHolder")}</Text>
-          <TextInput
+          <AppTextInput
             value={cardHolder}
             onChangeText={setCardHolder}
             placeholder={t("cardHolderPlaceholder")}
@@ -674,7 +674,7 @@ export default function EventPaymentScreen() {
           <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>
             {t("cardNumber")}
           </Text>
-          <TextInput
+          <AppTextInput
             value={cardNumber}
             onChangeText={(v) => setCardNumber(formatCardNumber(v))}
             placeholder={t("cardNumberPlaceholder")}
@@ -687,7 +687,7 @@ export default function EventPaymentScreen() {
           <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>
             {t("cardCvv")}
           </Text>
-          <TextInput
+          <AppTextInput
             value={cvv}
             onChangeText={(v) => setCvv(v.replace(/\D/g, "").slice(0, 4))}
             placeholder={t("cardCvvPlaceholder")}

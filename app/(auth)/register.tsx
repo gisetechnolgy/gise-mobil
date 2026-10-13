@@ -8,7 +8,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
   type StyleProp,
@@ -18,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
 import { AppText as Text } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 import {
   DEFAULT_PHONE_CODE,
   isRegisterCitySelectable,
@@ -321,7 +321,7 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <FieldCard label="İsim">
-            <TextInput
+            <AppTextInput
               value={form.name}
               onChangeText={(v) => set('name', v)}
               placeholder="İsminizi girin"
@@ -333,7 +333,7 @@ export default function RegisterScreen() {
           </FieldCard>
 
           <FieldCard label="Soyisim">
-            <TextInput
+            <AppTextInput
               value={form.surname}
               onChangeText={(v) => set('surname', v)}
               placeholder="Soyisminizi girin"
@@ -345,7 +345,7 @@ export default function RegisterScreen() {
           </FieldCard>
 
           <FieldCard label="E-posta">
-            <TextInput
+            <AppTextInput
               value={form.email}
               onChangeText={(v) => set('email', v)}
               placeholder="E-posta girin"
@@ -394,7 +394,7 @@ export default function RegisterScreen() {
                 />
               </TouchableOpacity>
               <View style={styles.phoneDivider} />
-              <TextInput
+              <AppTextInput
                 value={form.mobile}
                 onChangeText={(v) => set('mobile', v)}
                 placeholder="(599) 999 9999"
@@ -429,7 +429,7 @@ export default function RegisterScreen() {
             />
           ) : form.country ? (
             <FieldCard label="Şehir">
-              <TextInput
+              <AppTextInput
                 value={form.city}
                 onChangeText={(v) => set('city', v)}
                 placeholder="Şehrinizi girin"
@@ -442,7 +442,7 @@ export default function RegisterScreen() {
 
           <FieldCard label="Şifre">
             <View style={styles.passwordRow}>
-              <TextInput
+              <AppTextInput
                 value={form.password}
                 onChangeText={(v) => set('password', v)}
                 placeholder="Şifrenizi girin"
@@ -468,7 +468,7 @@ export default function RegisterScreen() {
 
           <FieldCard label="Şifreyi Tekrarla">
             <View style={styles.passwordRow}>
-              <TextInput
+              <AppTextInput
                 value={form.confirmPassword}
                 onChangeText={(v) => set('confirmPassword', v)}
                 placeholder="Şifrenizi tekrarlayın"
@@ -757,7 +757,7 @@ function SelectionModal({
                 color={COLORS.textSecondary}
                 style={styles.searchIcon}
               />
-              <TextInput
+              <AppTextInput
                 value={query}
                 onChangeText={setQuery}
                 placeholder="Ara..."

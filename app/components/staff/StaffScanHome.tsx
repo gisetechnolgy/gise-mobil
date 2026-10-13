@@ -8,7 +8,6 @@ import {
   Linking,
   Pressable,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +23,7 @@ import {
 import ScanResultModal from './ScanResultModal';
 import { useTranslation } from '../../context/_LocaleContext';
 import { AppText as Text } from '@/components/ui/AppText';
+import { AppTextInput } from '@/components/ui/AppTextInput';
 
 export default function StaffScanHome() {
   const router = useRouter();
@@ -108,7 +108,7 @@ export default function StaffScanHome() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t('ticketVerification')}</Text>
 
-        <TextInput
+        <AppTextInput
           value={pnr}
           onChangeText={setPnr}
           placeholder={t('enterPnr')}

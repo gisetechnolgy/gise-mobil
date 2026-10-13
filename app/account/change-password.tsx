@@ -1,14 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -20,7 +19,9 @@ import { useRequireAuth } from "../../hooks/useRequireAuth";
 import { ApiError } from "../../lib/api";
 import { useIsTablet } from "../../lib/responsive";
 import { changePassword } from "../../lib/users";
+import { getLoginMode } from "../../lib/loginSettings";
 import { AppText as Text } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 
 function FieldCard({
   label,
@@ -38,7 +39,7 @@ function FieldCard({
       <Text style={[styles.fieldLabel, isTablet && styles.fieldLabelTablet]}>
         {label}
       </Text>
-      <TextInput
+      <AppTextInput
         value={value}
         onChangeText={onChangeText}
         secureTextEntry
@@ -58,6 +59,15 @@ export default function ChangePasswordScreen() {
   const isTablet = useIsTablet();
   useAuth();
   useRequireAuth("/account/change-password");
+
+  // Login v2 (OTP): şifre yok — bu ekrana düşülmesin
+  useEffect(() => {
+    void getLoginMode().then((mode) => {
+      if (mode === "otp") {
+        router.replace("/(tabs)/profile" as import("expo-router").Href);
+      }
+    });
+  }, [router]);
 
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

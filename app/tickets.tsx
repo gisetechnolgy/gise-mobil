@@ -4,16 +4,19 @@ import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Easing,
   FlatList,
+  Keyboard,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
-  View
+  View,
 } from "react-native";
 import { appRefreshControl } from "../lib/appRefreshControl";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -23,10 +26,12 @@ import { useAuth } from "./context/AuthContext";
 import { useTranslation } from "./context/_LocaleContext";
 import { useIsTablet } from "../lib/responsive";
 import { AppText as Text } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 import { TicketQrCode } from "../components/TicketQrCode";
+import { LIST_CARD } from "../constants/homeSectionList";
+import { EventCardImage } from "./components/_EventCardImage";
 import {
   fetchMyTickets,
-  formatTicketDate,
   formatTicketDateLong,
   formatTicketTime,
   canRequestTicketRefund,
@@ -34,11 +39,16 @@ import {
   isTicketRefundPending,
   markTicketsRefundDoneForProducts,
   markTicketsRefundPendingForProducts,
+  updateTicketHolderName,
   TicketItem,
 } from "../lib/tickets";
 import CustomerRefundModal from "./components/CustomerRefundModal";
 
 const PAGE_SIZE = 10;
+
+const FOOTER_LINE_HEIGHT = Math.round(
+  Math.max(LIST_CARD.priceSize, LIST_CARD.buySize) * 1.3,
+);
 
 export default function TicketsScreen() {
   const router = useRouter();
@@ -56,19 +66,116 @@ export default function TicketsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
   const [refundSaleId, setRefundSaleId] = useState<string | null>(null);
+  const [editingHolder, setEditingHolder] = useState(false);
+  const [holderDraft, setHolderDraft] = useState("");
+  const [holderSaving, setHolderSaving] = useState(false);
+  const [holderError, setHolderError] = useState<string | null>(null);
   const sheetSlideAnim = useRef(new Animated.Value(0)).current;
+  const keyboardLift = useRef(new Animated.Value(0)).current;
 
   const openTicketSheet = useCallback(
     (item: TicketItem) => {
       sheetSlideAnim.setValue(windowHeight);
+      keyboardLift.setValue(0);
+      setEditingHolder(false);
+      setHolderError(null);
       setSelectedTicket(item);
     },
-    [sheetSlideAnim, windowHeight],
+    [keyboardLift, sheetSlideAnim, windowHeight],
   );
 
   const closeTicketSheet = useCallback(() => {
+    Keyboard.dismiss();
+    keyboardLift.setValue(0);
+    setEditingHolder(false);
+    setHolderError(null);
     setSelectedTicket(null);
-  }, []);
+  }, [keyboardLift]);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const onShow = Keyboard.addListener(showEvent, (e) => {
+      Animated.timing(keyboardLift, {
+        toValue: e.endCoordinates.height,
+        duration:
+          Platform.OS === "ios" ? Math.max(e.duration ?? 250, 200) : 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    });
+    const onHide = Keyboard.addListener(hideEvent, (e) => {
+      Animated.timing(keyboardLift, {
+        toValue: 0,
+        duration:
+          Platform.OS === "ios" ? Math.max(e.duration ?? 250, 200) : 180,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    });
+
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, [keyboardLift]);
+
+  const askEditHolderName = useCallback(() => {
+    if (!selectedTicket) return;
+    if (selectedTicket.isUsed || isTicketRefundDone(selectedTicket)) {
+      Alert.alert("", t("ticketHolderNameUsedBlocked"));
+      return;
+    }
+    Alert.alert(t("editTicketHolderName"), t("ticketHolderNamePermanentWarn"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("continueAction"),
+        onPress: () => {
+          // Alert kapanınca sheet içinde inline input (2. Modal iOS'ta açılmıyor)
+          setHolderDraft(
+            selectedTicket.holderName === "—"
+              ? ""
+              : selectedTicket.holderName,
+          );
+          setHolderError(null);
+          setTimeout(() => setEditingHolder(true), 50);
+        },
+      },
+    ]);
+  }, [selectedTicket, t]);
+
+  const saveHolderName = useCallback(async () => {
+    if (!selectedTicket || holderSaving) return;
+    const next = holderDraft.trim().replace(/\s+/g, " ");
+    if (next.length < 2) {
+      setHolderError(t("ticketHolderNameInvalid"));
+      return;
+    }
+    setHolderSaving(true);
+    setHolderError(null);
+    try {
+      const updated = await updateTicketHolderName(selectedTicket.id, next);
+      const merged: TicketItem = {
+        ...selectedTicket,
+        ...updated,
+        eventImageUrl: selectedTicket.eventImageUrl ?? updated.eventImageUrl,
+        holderName: updated.holderName || next,
+      };
+      setSelectedTicket(merged);
+      setItems((prev) =>
+        prev.map((it) => (it.id === merged.id ? { ...it, ...merged } : it)),
+      );
+      Keyboard.dismiss();
+      setEditingHolder(false);
+    } catch {
+      setHolderError(t("ticketHolderNameFailed"));
+    } finally {
+      setHolderSaving(false);
+    }
+  }, [holderDraft, holderSaving, selectedTicket, t]);
 
   const loadInitial = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -225,63 +332,113 @@ export default function TicketsScreen() {
           onEndReached={() => {
             void loadMore();
           }}
-          renderItem={({ item }) => (
-            <View style={[styles.card, isTablet && styles.cardTablet]}>
+          renderItem={({ item }) => {
+            const iso = item.eventDate || item.createdAt;
+            const time = formatTicketTime(iso);
+            const dateTime = [formatTicketDateLong(iso), time]
+              .filter(Boolean)
+              .join(", ");
+            const refundDone = isTicketRefundDone(item);
+            const refundPending = !refundDone && isTicketRefundPending(item);
+            return (
               <TouchableOpacity
-                activeOpacity={0.85}
+                activeOpacity={0.9}
                 onPress={() => openTicketSheet(item)}
+                style={[
+                  styles.ticketCard,
+                  { height: LIST_CARD.height, borderRadius: LIST_CARD.radius },
+                ]}
               >
-                <View style={styles.cardTop}>
+                <View
+                  style={[
+                    styles.ticketThumb,
+                    {
+                      width: LIST_CARD.imageWidth,
+                      borderTopLeftRadius: LIST_CARD.radius,
+                      borderBottomLeftRadius: LIST_CARD.radius,
+                    },
+                  ]}
+                >
+                  <EventCardImage
+                    imageUrl={item.eventImageUrl ?? null}
+                    cacheKey={item.eventImageUrl ?? item.eventId ?? item.id}
+                    recyclingKey={`t-${item.id}`}
+                    style={StyleSheet.absoluteFill}
+                    contentFit="cover"
+                  />
+                </View>
+                <View
+                  style={[
+                    styles.ticketContent,
+                    {
+                      paddingHorizontal: LIST_CARD.textPad,
+                      paddingVertical: LIST_CARD.textPadY,
+                      gap: LIST_CARD.lineGap,
+                    },
+                  ]}
+                >
                   <Text
-                    style={[
-                      styles.eventTitle,
-                      isTablet && styles.eventTitleTablet,
-                    ]}
+                    style={[styles.ticketTitle, { fontSize: LIST_CARD.titleSize }]}
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
                     {item.eventTitle}
                   </Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={19}
-                    color={AppColors.cardText}
-                    style={styles.chevron}
-                  />
+                  {dateTime ? (
+                    <Text
+                      style={[styles.ticketMeta, { fontSize: LIST_CARD.metaSize }]}
+                      numberOfLines={1}
+                    >
+                      {dateTime}
+                    </Text>
+                  ) : null}
+                  {item.venueName ? (
+                    <Text
+                      style={[styles.ticketMeta, { fontSize: LIST_CARD.metaSize }]}
+                      numberOfLines={1}
+                    >
+                      {item.venueName}
+                    </Text>
+                  ) : null}
+                  <View style={styles.ticketFooter}>
+                    <View style={styles.ticketLabelLine}>
+                      <View style={styles.ticketPill}>
+                        <Text
+                          style={[
+                            styles.ticketPillText,
+                            {
+                              fontSize: LIST_CARD.priceSize,
+                              lineHeight: FOOTER_LINE_HEIGHT,
+                            },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.holderName}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text
+                      style={[
+                        styles.ticketAction,
+                        refundDone && styles.ticketActionDone,
+                        {
+                          fontSize: LIST_CARD.buySize,
+                          lineHeight: FOOTER_LINE_HEIGHT,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {refundDone
+                        ? t("refundStatusDone")
+                        : refundPending
+                          ? t("refundStatusPendingShort")
+                          : t("viewTicket")}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={[styles.subtle, isTablet && styles.subtleTablet]}>
-                  #{item.ticketNo}
-                </Text>
-                <Text style={[styles.subtle, isTablet && styles.subtleTablet]}>
-                  {item.holderName}
-                </Text>
-                <Text style={[styles.subtle, isTablet && styles.subtleTablet]}>
-                  {item.ticketLabel}
-                </Text>
-                <Text style={[styles.dateText, isTablet && styles.subtleTablet]}>
-                  {formatTicketDate(item.eventDate || item.createdAt)}
-                </Text>
               </TouchableOpacity>
-
-              {isTicketRefundDone(item) ? (
-                <Text style={styles.refundStatusDone}>
-                  {t("refundStatusDone")}
-                </Text>
-              ) : isTicketRefundPending(item) ? (
-                <Text style={styles.refundStatusPending}>
-                  {t("refundStatusWaiting")}
-                </Text>
-              ) : canRequestTicketRefund(item) ? (
-                <TouchableOpacity
-                  style={styles.refundBtn}
-                  activeOpacity={0.85}
-                  onPress={() => setRefundSaleId(item.saleId)}
-                >
-                  <Text style={styles.refundBtnText}>{t("refundRequest")}</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
               <View style={[styles.emptyCard, isTablet && styles.emptyCardTablet]}>
@@ -365,23 +522,130 @@ export default function TicketsScreen() {
             collapsable={false}
             style={[
               styles.sheet,
-              { transform: [{ translateY: sheetSlideAnim }] },
+              {
+                paddingBottom: Math.max(insets.bottom, 16) + 24,
+                transform: [
+                  {
+                    translateY: Animated.subtract(
+                      sheetSlideAnim,
+                      keyboardLift,
+                    ),
+                  },
+                ],
+              },
             ]}
           >
             {selectedTicket && (
               <>
+                {isTicketRefundDone(selectedTicket) ? (
+                  <Text style={styles.refundCornerStatus}>
+                    {t("refundStatusDone")}
+                  </Text>
+                ) : isTicketRefundPending(selectedTicket) ? (
+                  <Text
+                    style={[styles.refundCornerStatus, styles.refundCornerPending]}
+                    numberOfLines={2}
+                  >
+                    {t("refundStatusPendingShort")}
+                  </Text>
+                ) : canRequestTicketRefund(selectedTicket) ? (
+                  <TouchableOpacity
+                    style={styles.refundCornerBtn}
+                    activeOpacity={0.75}
+                    hitSlop={8}
+                    onPress={() => {
+                      const saleId = selectedTicket.saleId;
+                      closeTicketSheet();
+                      setRefundSaleId(saleId);
+                    }}
+                  >
+                    <Text style={styles.refundCornerBtnText}>
+                      {t("refundRequest")}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+
                 <TicketQrCode
                   value={selectedTicket.qrData}
-                  size={160}
+                  size={220}
                   style={styles.qr}
                 />
                 <Text style={styles.sheetEventTitle}>
                   {selectedTicket.eventTitle}
                 </Text>
                 <View style={styles.sheetDivider} />
-                <Text style={styles.sheetHolder}>
-                  {selectedTicket.holderName}
-                </Text>
+                {editingHolder ? (
+                  <View style={styles.holderEditInline}>
+                    <AppTextInput
+                      value={holderDraft}
+                      onChangeText={(v) => {
+                        setHolderDraft(v);
+                        if (holderError) setHolderError(null);
+                      }}
+                      placeholder={t("ticketHolderNamePlaceholder")}
+                      placeholderTextColor="#A0A8B0"
+                      autoCapitalize="words"
+                      autoCorrect={false}
+                      autoFocus
+                      editable={!holderSaving}
+                      style={styles.editInput}
+                      maxLength={80}
+                    />
+                    {holderError ? (
+                      <Text style={styles.editError}>{holderError}</Text>
+                    ) : null}
+                    <View style={styles.editActions}>
+                      <TouchableOpacity
+                        style={styles.editSecondaryBtn}
+                        disabled={holderSaving}
+                        onPress={() => {
+                          Keyboard.dismiss();
+                          setEditingHolder(false);
+                          setHolderError(null);
+                        }}
+                      >
+                        <Text style={styles.editSecondaryText}>{t("cancel")}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.editPrimaryBtn,
+                          holderSaving && { opacity: 0.7 },
+                        ]}
+                        disabled={holderSaving}
+                        onPress={() => void saveHolderName()}
+                      >
+                        {holderSaving ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <Text style={styles.editPrimaryText}>
+                            {t("ticketHolderNameSave")}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.holderRow}>
+                    <Text style={styles.sheetHolder} numberOfLines={2}>
+                      {selectedTicket.holderName}
+                    </Text>
+                    {!selectedTicket.isUsed &&
+                    !isTicketRefundDone(selectedTicket) ? (
+                      <TouchableOpacity
+                        onPress={askEditHolderName}
+                        hitSlop={10}
+                        style={styles.holderEditBtn}
+                        accessibilityLabel={t("editTicketHolderName")}
+                      >
+                        <Ionicons
+                          name="create-outline"
+                          size={20}
+                          color={AppColors.accent}
+                        />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                )}
                 <Text style={styles.sheetLabel}>
                   {selectedTicket.ticketLabel}
                 </Text>
@@ -432,30 +696,6 @@ export default function TicketsScreen() {
                     </Text>
                   </View>
                 </View>
-
-                {isTicketRefundDone(selectedTicket) ? (
-                  <Text style={styles.refundStatusDone}>
-                    {t("refundStatusDone")}
-                  </Text>
-                ) : isTicketRefundPending(selectedTicket) ? (
-                  <Text style={styles.refundStatusPending}>
-                    {t("refundStatusWaiting")}
-                  </Text>
-                ) : canRequestTicketRefund(selectedTicket) ? (
-                  <TouchableOpacity
-                    style={styles.refundBtnSheet}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      const saleId = selectedTicket.saleId;
-                      closeTicketSheet();
-                      setRefundSaleId(saleId);
-                    }}
-                  >
-                    <Text style={styles.refundBtnText}>
-                      {t("refundRequest")}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
               </>
             )}
           </Animated.View>
@@ -556,73 +796,97 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
   },
-  cardTop: {
+  ticketCard: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  eventTitle: {
+  ticketThumb: {
+    height: "100%",
+    backgroundColor: "#E5E7EB",
+    flexShrink: 0,
+    overflow: "hidden",
+  },
+  ticketContent: {
     flex: 1,
-    color: AppColors.cardText,
-    fontSize: 16,
+    minWidth: 0,
+    justifyContent: "flex-start",
+  },
+  ticketTitle: {
     fontFamily: "PoppinsBold",
-    lineHeight: 21,
-    paddingRight: 10,
+    color: AppColors.heading,
+    lineHeight: 16,
   },
-  eventTitleTablet: {
-    fontSize: 20,
-    lineHeight: 28,
+  ticketMeta: {
+    fontFamily: "PoppinsRegular",
+    color: "#808080",
   },
-  chevron: {
-    marginTop: 1,
-  },
-  subtle: {
-    marginTop: 2,
-    color: "#5f6f7d",
-    fontSize: 14,
-  },
-  subtleTablet: {
-    fontSize: 17,
-  },
-  dateText: {
-    marginTop: 2,
-    color: "#546573",
-    fontSize: 14,
-    fontFamily: "PoppinsMedium",
-  },
-  refundBtn: {
-    marginTop: 10,
-    alignSelf: "flex-start",
-    backgroundColor: AppColors.navBg,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  refundBtnSheet: {
-    marginTop: 16,
-    alignSelf: "stretch",
-    backgroundColor: AppColors.navBg,
-    borderRadius: 10,
-    height: 44,
+  ticketFooter: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 8,
+    marginTop: "auto",
   },
-  refundBtnText: {
-    color: "#FFFFFF",
+  ticketLabelLine: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    alignItems: "flex-start",
+  },
+  ticketPill: {
+    maxWidth: "100%",
+    backgroundColor: "#e6e6e6",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  ticketPillText: {
+    fontFamily: "PoppinsBold",
+    color: AppColors.heading,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+  ticketAction: {
+    flexShrink: 0,
+    paddingVertical: 5,
+    fontFamily: "PoppinsBold",
+    color: AppColors.accent,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+  ticketActionDone: {
+    color: AppColors.accent,
+  },
+  refundCornerBtn: {
+    position: "absolute",
+    top: 14,
+    right: 16,
+    zIndex: 5,
+  },
+  refundCornerBtnText: {
+    color: AppColors.accent,
     fontFamily: "PoppinsSemiBold",
-    fontSize: 13,
+    fontSize: 12,
   },
-  refundStatusDone: {
-    marginTop: 10,
-    color: "#16A34A",
-    fontFamily: "PoppinsMedium",
-    fontSize: 13,
-  },
-  refundStatusPending: {
-    marginTop: 10,
+  refundCornerStatus: {
+    position: "absolute",
+    top: 14,
+    right: 16,
+    zIndex: 5,
+    maxWidth: 120,
     color: AppColors.accent,
     fontFamily: "PoppinsMedium",
-    fontSize: 13,
+    fontSize: 11,
+    textAlign: "right",
+  },
+  refundCornerPending: {
+    maxWidth: 130,
   },
   center: {
     flex: 1,
@@ -727,48 +991,122 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingTop: 18,
-    paddingHorizontal: 20,
-    paddingBottom: 28,
+    paddingTop: 28,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    minHeight: 520,
     alignItems: "center",
     zIndex: 2,
     elevation: 24,
   },
   qr: {
-    width: 160,
-    height: 160,
-    marginBottom: 12,
+    width: 220,
+    height: 220,
+    marginBottom: 16,
   },
   sheetEventTitle: {
     color: "#111827",
-    fontSize: 31,
+    fontSize: 28,
     fontFamily: "PoppinsBold",
     textAlign: "center",
-    marginBottom: 12,
+    marginBottom: 14,
+    paddingHorizontal: 8,
   },
   sheetDivider: {
     width: "100%",
     borderTopColor: "#E5E7EB",
     borderTopWidth: 1,
-    marginBottom: 14,
+    marginBottom: 16,
+  },
+  holderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 28,
+    maxWidth: "100%",
   },
   sheetHolder: {
     color: "#111827",
     fontSize: 22,
     fontFamily: "PoppinsBold",
+    textAlign: "center",
+    flexShrink: 1,
+  },
+  holderEditBtn: {
+    padding: 4,
+    flexShrink: 0,
+  },
+  holderEditInline: {
+    width: "100%",
+    paddingHorizontal: 4,
+    marginBottom: 4,
   },
   sheetLabel: {
     color: "#111827",
     fontSize: 18,
     fontFamily: "PoppinsBold",
     marginTop: 4,
-    marginBottom: 14,
+    marginBottom: 18,
+  },
+  editInput: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontFamily: "PoppinsRegular",
+    fontSize: 16,
+    color: AppColors.heading,
+    letterSpacing: 0,
+    width: "100%",
+    textAlign: "center",
+  },
+  editError: {
+    marginTop: 8,
+    fontFamily: "PoppinsRegular",
+    fontSize: 13,
+    color: "#DC2626",
+    textAlign: "center",
+  },
+  editActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
+  editSecondaryBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editSecondaryText: {
+    fontFamily: "PoppinsSemiBold",
+    fontSize: 14,
+    color: AppColors.heading,
+  },
+  editPrimaryBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: AppColors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editPrimaryText: {
+    fontFamily: "PoppinsSemiBold",
+    fontSize: 14,
+    color: "#fff",
   },
   metaGrid: {
     width: "100%",
     flexDirection: "row",
     flexWrap: "wrap",
-    rowGap: 14,
+    rowGap: 18,
+    marginTop: 4,
   },
   metaCell: {
     width: "50%",

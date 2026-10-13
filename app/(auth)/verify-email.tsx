@@ -4,14 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
-  View
+  View,
+  type TextInput as TextInputType,
 } from "react-native";
 import AuthScreenLayout from '../components/AuthScreenLayout';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/_LocaleContext';
 import { AppText as Text } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 
 const CODE_LENGTH = 6;
 const RESEND_COOLDOWN = 60;
@@ -24,7 +25,7 @@ export default function VerifyEmailScreen() {
   const email = (params.email ?? '').toString();
 
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(''));
-  const inputs = useRef<(TextInput | null)[]>([]);
+  const inputs = useRef<(TextInputType | null)[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
@@ -144,7 +145,7 @@ export default function VerifyEmailScreen() {
 
       <View style={styles.codeRow}>
         {digits.map((d, i) => (
-          <TextInput
+          <AppTextInput
             key={i}
             ref={(r) => {
               inputs.current[i] = r;

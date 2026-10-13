@@ -17,7 +17,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -29,6 +28,7 @@ import HtmlContent from "../components/HtmlContent";
 import InAppVideoModal, {
   type InAppVideoSource,
 } from "../../components/InAppVideoModal";
+import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppColors } from "../../constants/colors";
 import { PAGE_GUTTER } from "../../constants/homeSection";
 import { tabBarScrollPadding } from "../../constants/tabBar";
@@ -289,7 +289,7 @@ function FaqView({
 
       <View style={styles.searchWrap}>
         <Ionicons name="search" size={18} color="rgba(0,0,0,0.35)" />
-        <TextInput
+        <AppTextInput
           value={faqSearchQuery}
           onChangeText={onFaqSearch}
           placeholder={t("faqSearchPlaceholder")}
@@ -541,7 +541,7 @@ function SupportInput({
   return (
     <View style={styles.inputGroup}>
       <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
+      <AppTextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -765,7 +765,7 @@ function ChatView({
           { paddingBottom: Math.max(bottomPad, 12) },
         ]}
       >
-        <TextInput
+        <AppTextInput
           style={styles.chatInput}
           value={chatDraft}
           onChangeText={setChatDraft}
@@ -839,7 +839,7 @@ function SurveyView({
           ))}
         </View>
         <Text style={styles.surveyLabel}>{t("surveyCommentLabel")}</Text>
-        <TextInput
+        <AppTextInput
           style={styles.surveyComment}
           value={comment}
           onChangeText={setComment}
@@ -956,7 +956,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(128,128,128,0.35)",
+    borderColor: AppColors.accent,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === "ios" ? 12 : 4,
     marginBottom: 16,
@@ -967,6 +967,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#111",
     paddingVertical: 8,
+    letterSpacing: 0,
   },
   muted: {
     color: "rgba(0,0,0,0.5)",
