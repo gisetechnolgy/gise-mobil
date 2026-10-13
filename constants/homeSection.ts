@@ -22,9 +22,18 @@ export const HOME_SECTION_FOOTER_GAP = 48;
 export const HOME_SECTION_CARD_GAP = 12;
 export const PAGE_GUTTER = 16;
 
-export const SECTION_BG = '#E6E6E6';
+export const SECTION_BG = '#F3F4F6';
 export const NAV_BORDER_COLOR = '#EBEBEB';
 export const CONTROL_BORDER = '#D8DDE3';
+
+/** Yayvan yumuşak gölge — arama kutusu, yatay kart, tab bar */
+export const SOFT_SHADOW = {
+  shadowColor: '#0F2137',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.08,
+  shadowRadius: 12,
+  elevation: 4,
+} as const;
 
 export const EVENT_CARD_SHADOW = {
   shadowColor: '#000',

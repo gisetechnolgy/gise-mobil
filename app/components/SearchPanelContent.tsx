@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, useSegments } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ScrollView,
@@ -24,6 +24,7 @@ import {
   getSearchFeaturedCardWidth,
 } from "../../constants/searchPanel";
 import { formatCategoryMenuLabel } from "../../lib/categoryIcons";
+import { eventsTabPath, useTabGroup } from "../../lib/navigation";
 import { fetchCategories, type CategoryItem } from "../../lib/definitions";
 import {
   eventImageCacheKey,
@@ -106,6 +107,12 @@ export default function SearchPanelContent({
   bottomPadding,
 }: Props) {
   const router = useRouter();
+  const segments = useSegments();
+  const eventsPath = eventsTabPath(useTabGroup());
+  const onEventsTab =
+    segments.length === 2 &&
+    (segments[0] === "(tabs)" || segments[0] === "(admin-tabs)") &&
+    segments[1] === "events";
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
   const trimmed = query.trim();
@@ -200,16 +207,15 @@ export default function SearchPanelContent({
   const goCategory = useCallback(
     (categoryId: string | "all") => {
       onNavigate?.();
-      if (categoryId === "all") {
-        router.push("/(tabs)/events");
-        return;
-      }
-      router.push({
-        pathname: "/(tabs)/events",
-        params: { category: categoryId },
-      });
+      const href = {
+        pathname: eventsPath,
+        params: categoryId === "all" ? {} : { category: categoryId },
+      };
+      /** Zaten etkinlikler sekmesindeyken push aynı ekranı açmaz; filtreyi yerinde değiştir */
+      if (onEventsTab) router.replace(href);
+      else router.push(href);
     },
-    [onNavigate, router],
+    [onNavigate, router, eventsPath, onEventsTab],
   );
 
   if (!trimmed) {
@@ -243,11 +249,17 @@ export default function SearchPanelContent({
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={{
+                marginHorizontal: -SEARCH_PANEL_PAD_X,
+                marginTop: -10,
+                marginBottom: -18,
+              }}
               contentContainerStyle={{
                 gap: SEARCH_FEATURED_CARD_GAP,
-                paddingRight: 12,
-                paddingBottom: 10,
-                paddingTop: 2,
+                paddingLeft: SEARCH_PANEL_PAD_X,
+                paddingRight: SEARCH_PANEL_PAD_X + 12,
+                paddingBottom: 28,
+                paddingTop: 12,
               }}
             >
               {featured.map((event, index) => (

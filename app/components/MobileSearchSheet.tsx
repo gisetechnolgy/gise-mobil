@@ -10,6 +10,8 @@ type Props = {
   topOffset: number;
   query: string;
   scope?: "all" | "events" | "venues";
+  /** Panelden bir yere gidilince (kategori, etkinlik, mekân) */
+  onClose?: () => void;
 };
 
 /**
@@ -22,6 +24,7 @@ export default function MobileSearchSheet({
   topOffset,
   query,
   scope = "all",
+  onClose,
 }: Props) {
   const insets = useSafeAreaInsets();
   const isTablet = useIsTablet();
@@ -81,6 +84,10 @@ export default function MobileSearchSheet({
         query={query}
         scope={scope}
         bottomPadding={contentBottomPad}
+        onNavigate={() => {
+          Keyboard.dismiss();
+          onClose?.();
+        }}
       />
     </View>
   );

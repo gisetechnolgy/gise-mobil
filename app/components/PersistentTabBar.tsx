@@ -15,6 +15,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppColors } from "../../constants/colors";
+import { PAGE_GUTTER, SECTION_BG, SOFT_SHADOW } from "../../constants/homeSection";
+
+/** Tab bar altı sis: barın ortasından başlar, aşağı indikçe yoğunlaşır */
+const FOG_TRANSPARENT = "rgba(243, 244, 246, 0)";
+const FOG_DENSE = "rgba(243, 244, 246, 0.6)";
 import {
   resolveAdminActiveTab,
   resolveConsumerActiveTab,
@@ -217,7 +222,8 @@ export default function PersistentTabBar() {
 
   const bottomOffset = Math.max(insets.bottom, 12) + 8;
   const barHeight = isTablet ? 82 : 68;
-  const sideInset = getScreenHorizontalInset(isTablet);
+  /** Kartlarla aynı yan boşluk */
+  const sideInset = isTablet ? getScreenHorizontalInset(true) : PAGE_GUTTER;
   const iconSize = isTablet ? 30 : 25;
   const labelSize = isTablet ? 12 : 10;
   const centerSize = isTablet ? 70 : 60;
@@ -226,19 +232,7 @@ export default function PersistentTabBar() {
   /** QR dairesi barın üst kenarından taşar */
   const centerLift = isTablet ? 17 : 14;
 
-  const barShadow = Platform.select({
-    ios: {
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.22,
-      shadowRadius: 20,
-    },
-    android: { elevation: 20 },
-    default: {
-      boxShadow:
-        "0 10px 15px -3px rgba(0, 0, 0, 0.12), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
-    },
-  });
+  const barShadow = SOFT_SHADOW;
 
   const drawerOpacity = drawerAnim.interpolate({
     inputRange: [0, 0.25],
@@ -389,6 +383,26 @@ export default function PersistentTabBar() {
           ))}
         </View>
       ) : null}
+
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: bottomOffset + barHeight / 2,
+          opacity,
+          zIndex: 99,
+          elevation: 99,
+        }}
+      >
+        <LinearGradient
+          colors={[FOG_TRANSPARENT, FOG_DENSE, SECTION_BG]}
+          locations={[0, 0.5, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
 
       <Animated.View
         pointerEvents="box-none"

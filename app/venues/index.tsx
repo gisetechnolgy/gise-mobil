@@ -430,6 +430,10 @@ export default function VenuesScreen() {
         topOffset={headerHeight}
         query={siteSearchQuery}
         scope="all"
+        onClose={() => {
+          setSiteSearchOpen(false);
+          setSiteSearchQuery("");
+        }}
       />
     </View>
   );

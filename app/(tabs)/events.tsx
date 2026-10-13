@@ -856,6 +856,10 @@ export default function EventsScreen() {
         topOffset={headerHeight}
         query={searchQuery}
         scope="all"
+        onClose={() => {
+          setSearchOpen(false);
+          setSearchQuery("");
+        }}
       />
 
       <Modal

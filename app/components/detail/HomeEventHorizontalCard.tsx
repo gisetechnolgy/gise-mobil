@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { AppColors } from "../../../constants/colors";
 import { LIST_CARD } from "../../../constants/homeSectionList";
+import { SOFT_SHADOW } from "../../../constants/homeSection";
 import {
   EventItem,
   eventImageCacheKey,
@@ -23,9 +24,10 @@ const FOOTER_LINE_HEIGHT = Math.round(
   Math.max(LIST_CARD.priceSize, LIST_CARD.buySize) * 1.3,
 );
 
-const META_ICON_SIZE = LIST_CARD.metaSize + 2;
+/** İkon boyu = yazı boyu */
+const META_ICON_SIZE = LIST_CARD.metaSize;
 /** Feather ikonlarının iç boşluğu (3/24) telafi — ikon başlığın ilk harfiyle aynı çizgide */
-const META_ICON_OFFSET = -Math.round((META_ICON_SIZE * 3) / 24);
+const META_ICON_OFFSET = -(META_ICON_SIZE * 3) / 24;
 
 type Props = {
   event: EventItem & {
@@ -205,11 +207,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#EBEBEB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...SOFT_SHADOW,
   },
   thumb: {
     height: "100%",

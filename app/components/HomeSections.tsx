@@ -21,6 +21,10 @@ import {
   PAGE_GUTTER,
   SECTION_BG,
 } from "../../constants/homeSection";
+
+/** Yatay ScrollView gölgeyi kırpar; iç boşluk gölgeye yer açar, eksi margin yerleşimi korur */
+const SHADOW_BLEED_PADDING = { paddingTop: 12, paddingBottom: 28 } as const;
+const SHADOW_BLEED_STYLE = { marginTop: -8, marginBottom: -24 } as const;
 import {
   formatHomeSectionTitle,
   getHomeSectionChrome,
@@ -264,10 +268,10 @@ const HomeSections = forwardRef<SectionReloadHandle, SectionLoadingProps>(
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
+                  style={SHADOW_BLEED_STYLE}
                   contentContainerStyle={{
                     paddingHorizontal: PAGE_GUTTER,
-                    paddingTop: 4,
-                    paddingBottom: 4,
+                    ...SHADOW_BLEED_PADDING,
                     gap: 10,
                   }}
                 >
@@ -301,10 +305,10 @@ const HomeSections = forwardRef<SectionReloadHandle, SectionLoadingProps>(
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
+                  style={SHADOW_BLEED_STYLE}
                   contentContainerStyle={{
                     paddingHorizontal: PAGE_GUTTER,
-                    paddingTop: 4,
-                    paddingBottom: 4,
+                    ...SHADOW_BLEED_PADDING,
                     gap: HOME_SECTION_CARD_GAP,
                   }}
                 >

@@ -308,6 +308,10 @@ export default function CompaniesScreen() {
         topOffset={headerHeight}
         query={siteSearchQuery}
         scope="all"
+        onClose={() => {
+          setSiteSearchOpen(false);
+          setSiteSearchQuery("");
+        }}
       />
     </View>
   );

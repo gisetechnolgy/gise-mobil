@@ -133,6 +133,10 @@ export default function HomeScreen() {
         topOffset={headerHeight}
         query={searchQuery}
         scope="all"
+        onClose={() => {
+          setSearchOpen(false);
+          setSearchQuery("");
+        }}
       />
     </View>
   );

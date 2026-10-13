@@ -58,9 +58,10 @@ const FOOTER_LINE_HEIGHT = Math.round(
   Math.max(CARD_PRICE_SIZE, COMPACT.buySize) * 1.3,
 );
 
-const META_ICON_SIZE = CARD_META_SIZE + 2;
+/** İkon boyu = yazı boyu */
+const META_ICON_SIZE = CARD_META_SIZE;
 /** Feather ikonlarının iç boşluğu (3/24) telafi — ikon başlığın ilk harfiyle aynı çizgide */
-const META_ICON_OFFSET = -Math.round((META_ICON_SIZE * 3) / 24);
+const META_ICON_OFFSET = -(META_ICON_SIZE * 3) / 24;
 
 export function getHomeEventCardWidth(
   _screenWidth?: number,

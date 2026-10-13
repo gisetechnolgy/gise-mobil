@@ -20,6 +20,7 @@ import { AppColors } from "../../constants/colors";
 import {
   CONTROL_BORDER,
   NAV_BORDER_COLOR,
+  SOFT_SHADOW,
 } from "../../constants/homeSection";
 import { fetchBrowsableCategories, type CategoryItem } from "../../lib/definitions";
 import { usePlatformLogoSource } from "../context/BrandingContext";
@@ -372,11 +373,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     borderWidth: 2,
-    shadowColor: "#0F2137",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    ...SOFT_SHADOW,
   },
   input: {
     flex: 1,

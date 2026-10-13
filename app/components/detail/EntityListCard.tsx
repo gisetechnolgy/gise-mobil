@@ -9,9 +9,10 @@ import { ENTITY_LIST_CARD } from "../../../constants/mobileDetail";
 import { formatCityLabel } from "../../../lib/cities";
 import { resolveRemoteImageUrl } from "../../../lib/remoteImage";
 
-const META_ICON_SIZE = ENTITY_LIST_CARD.metaSize + 2;
+/** İkon boyu = yazı boyu */
+const META_ICON_SIZE = ENTITY_LIST_CARD.metaSize;
 /** Feather ikonlarının iç boşluğu (3/24) telafi — ikon başlığın ilk harfiyle aynı çizgide */
-const META_ICON_OFFSET = -Math.round((META_ICON_SIZE * 3) / 24);
+const META_ICON_OFFSET = -(META_ICON_SIZE * 3) / 24;
 
 type Props = {
   id: string;
