@@ -93,7 +93,6 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [layoutModal, setLayoutModal] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(true);
 
   const loadEvent = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -405,33 +404,7 @@ export default function EventDetailScreen() {
                         ) : null}
                       </View>
                       {detailsPlain ? (
-                        <View style={styles.accordion}>
-                          <TouchableOpacity
-                            style={styles.accordionHead}
-                            onPress={() => setDetailsOpen((v) => !v)}
-                            activeOpacity={0.8}
-                          >
-                            {!detailsOpen ? (
-                              <Text style={styles.accordionToggle}>
-                                {t("showMore")}
-                              </Text>
-                            ) : (
-                              <View style={{ flex: 1 }} />
-                            )}
-                            <View style={styles.chevronBox}>
-                              <Ionicons
-                                name={
-                                  detailsOpen ? "chevron-up" : "chevron-down"
-                                }
-                                size={16}
-                                color="#374151"
-                              />
-                            </View>
-                          </TouchableOpacity>
-                          {detailsOpen ? (
-                            <Text style={styles.detailsBody}>{detailsPlain}</Text>
-                          ) : null}
-                        </View>
+                        <Text style={styles.detailsBody}>{detailsPlain}</Text>
                       ) : null}
                     </DetailCard>
                   ) : null}
@@ -582,36 +555,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#1A1A1A",
     marginTop: 2,
-  },
-  accordion: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
-  },
-  accordionHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  accordionTitle: {
-    fontFamily: "PoppinsBold",
-    fontSize: 15,
-    color: "#0F2137",
-  },
-  accordionToggle: {
-    flex: 1,
-    fontFamily: "PoppinsSemiBold",
-    fontSize: 13,
-    color: "#6B7280",
-  },
-  chevronBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-    justifyContent: "center",
   },
   detailsBody: {
     marginTop: 10,

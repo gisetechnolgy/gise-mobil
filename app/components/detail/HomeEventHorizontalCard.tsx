@@ -115,85 +115,99 @@ export default function HomeEventHorizontalCard({
           },
         ]}
       >
-        <Text
-          style={[styles.title, { fontSize: LIST_CARD.titleSize }]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
-          {event.title}
-        </Text>
-        {/* Başlık | tarih-mekan | çizgi | fiyat — aradaki boşluklar eşit (space-between) */}
-        <View style={[styles.metaBlock, { gap: LIST_CARD.lineGap }]}>
-          {dateTime ? (
-            <View style={styles.metaRow}>
-              <Feather
-                name="calendar"
-                size={META_ICON_SIZE}
-                color={AppColors.accent}
-                style={styles.metaIcon}
-              />
-              <Text
-                style={[styles.meta, { fontSize: LIST_CARD.metaSize }]}
-                numberOfLines={1}
-              >
-                {dateTime}
-              </Text>
-            </View>
-          ) : null}
-          {venueLabel ? (
-            <View style={styles.metaRow}>
-              <Feather
-                name="map-pin"
-                size={META_ICON_SIZE}
-                color={AppColors.accent}
-                style={styles.metaIcon}
-              />
-              <Text
-                style={[styles.meta, { fontSize: LIST_CARD.metaSize }]}
-                numberOfLines={1}
-              >
-                {venueLabel}
-              </Text>
-            </View>
-          ) : null}
+        <View style={[styles.topBlock, { gap: LIST_CARD.lineGap }]}>
+          <Text
+            style={[styles.title, { fontSize: LIST_CARD.titleSize }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {event.title}
+          </Text>
+          <View style={[styles.metaBlock, { gap: LIST_CARD.lineGap }]}>
+            {dateTime ? (
+              <View style={styles.metaRow}>
+                <Feather
+                  name="calendar"
+                  size={META_ICON_SIZE}
+                  color={AppColors.accent}
+                  style={styles.metaIcon}
+                />
+                <Text
+                  style={[styles.meta, { fontSize: LIST_CARD.metaSize }]}
+                  numberOfLines={1}
+                >
+                  {dateTime}
+                </Text>
+              </View>
+            ) : null}
+            {venueLabel ? (
+              <View style={styles.metaRow}>
+                <Feather
+                  name="map-pin"
+                  size={META_ICON_SIZE}
+                  color={AppColors.accent}
+                  style={styles.metaIcon}
+                />
+                <Text
+                  style={[styles.meta, { fontSize: LIST_CARD.metaSize }]}
+                  numberOfLines={1}
+                >
+                  {venueLabel}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
-        <View style={styles.divider} />
-        <View style={styles.footer}>
-          {priceLabel ? (
-            <View style={styles.priceLine}>
-              <Text style={styles.priceCaption} numberOfLines={1}>
-                {t("ticketPriceLabel")}
-              </Text>
+        {/* Çizgi üst/alt = kenar padding */}
+        <View style={styles.bottomBlock}>
+          <View
+            style={[
+              styles.dividerWrap,
+              {
+                paddingTop: LIST_CARD.textPadY,
+                paddingBottom: LIST_CARD.textPadY,
+              },
+            ]}
+          >
+            <View style={styles.divider} />
+          </View>
+          <View style={styles.footer}>
+            {priceLabel ? (
+              <View style={styles.priceLine}>
+                <Text style={styles.priceCaption} numberOfLines={1}>
+                  {t("ticketPriceLabel")}
+                </Text>
+                <Text
+                  style={[
+                    styles.price,
+                    {
+                      fontSize: LIST_CARD.priceSize,
+                      lineHeight: FOOTER_LINE_HEIGHT,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {priceLabel}
+                </Text>
+              </View>
+            ) : (
+              <View style={{ flex: 1 }} />
+            )}
+            <View style={styles.buyBox}>
               <Text
                 style={[
-                  styles.price,
+                  styles.buy,
                   {
-                    fontSize: LIST_CARD.priceSize,
+                    fontSize: LIST_CARD.buySize,
                     lineHeight: FOOTER_LINE_HEIGHT,
                   },
                 ]}
                 numberOfLines={1}
               >
-                {priceLabel}
+                {t("buy")}
               </Text>
+              <Feather name="chevron-right" size={12} color="#FFFFFF" />
             </View>
-          ) : (
-            <View style={{ flex: 1 }} />
-          )}
-          <View style={styles.buyBox}>
-            <Text
-              style={[
-                styles.buy,
-                {
-                  fontSize: LIST_CARD.buySize,
-                  lineHeight: FOOTER_LINE_HEIGHT,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {t("buy")}
-            </Text>
-            <Feather name="chevron-right" size={12} color="#FFFFFF" />
           </View>
         </View>
       </View>
@@ -218,8 +232,18 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     minWidth: 0,
-    /** title | meta | footer — tarih/mekan üst-alt boşluk eşit */
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
+  },
+  topBlock: {
+    flexShrink: 0,
+    minWidth: 0,
+  },
+  bottomBlock: {
+    marginTop: "auto",
+    flexShrink: 0,
+  },
+  dividerWrap: {
+    flexShrink: 0,
   },
   title: {
     fontFamily: "PoppinsBold",

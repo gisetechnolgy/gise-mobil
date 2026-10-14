@@ -27,7 +27,6 @@ import { useIsTablet } from "../../lib/responsive";
 import { readFollowedCompanyIds } from "../../lib/followedCompanies";
 import { readFollowedVenueIds } from "../../lib/followedVenues";
 import { readFavouriteEventIds } from "../../lib/favouriteEvents";
-import { api } from "../../lib/api";
 import { AppText as Text } from "@/components/ui/AppText";
 import {
   disablePushNotifications,
@@ -36,41 +35,7 @@ import {
 } from "../../lib/push-notifications";
 import { getLoginMode, type WebLoginMode } from "../../lib/loginSettings";
 
-async function openOtherApps() {
-  type SsoApp = { id?: string; name?: string; targetUrl: string };
-  const apps = await api.get<SsoApp[]>("/auth/sso/apps", { auth: true });
-  if (!apps?.length) return;
-
-  const open = async (targetUrl: string) => {
-    const res = await api.post<{ ssoLink?: string }>(
-      "/auth/sso/generate",
-      { targetUrl },
-      { auth: true },
-    );
-    if (res?.ssoLink) {
-      await Linking.openURL(res.ssoLink);
-    }
-  };
-
-  if (apps.length === 1) {
-    await open(apps[0].targetUrl);
-    return;
-  }
-
-  Alert.alert(
-    "Apps",
-    undefined,
-    [
-      ...apps.map((app) => ({
-        text: app.name || app.targetUrl,
-        onPress: () => {
-          void open(app.targetUrl);
-        },
-      })),
-      { text: "Cancel", style: "cancel" as const },
-    ],
-  );
-}
+/* Geçici: Diğer uygulamalar menüsü gizlendi — geri açınca openOtherApps + api import’u geri ekle */
 
 /** Floating tab bar için alt boşluk */
 const TAB_BAR_SCROLL_BOTTOM = { phone: 100, tablet: 120 } as const;
@@ -194,11 +159,7 @@ export default function ProfileScreen() {
         onPress: () => router.push("/account/change-password" as Href),
       });
     }
-    items.push({
-      icon: "apps-outline",
-      label: t("otherApps"),
-      onPress: () => void openOtherApps(),
-    });
+    // Geçici: Diğer uygulamalar menüsü gizlendi
     return items;
   }, [loginMode, router, t]);
 

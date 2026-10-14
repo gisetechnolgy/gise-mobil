@@ -40,13 +40,22 @@ function ProductRow({
             numberOfLines={2}
           >
             {product.title}
-            {product.soldOut ? (
-              <Text style={styles.soldOut}> {soldOutLabel}</Text>
-            ) : null}
           </Text>
         </View>
 
         <View style={styles.rightCol}>
+          {product.soldOut ? (
+            <View style={styles.soldOutBtn}>
+              <Text style={styles.soldOutBtnText}>{soldOutLabel}</Text>
+            </View>
+          ) : (
+            <Text
+              style={[styles.price, isTablet && styles.priceTablet]}
+              numberOfLines={1}
+            >
+              {product.priceLabel}
+            </Text>
+          )}
           {canExpand ? (
             <View style={styles.chevronWrap}>
               <Ionicons
@@ -56,12 +65,6 @@ function ProductRow({
               />
             </View>
           ) : null}
-          <Text
-            style={[styles.price, isTablet && styles.priceTablet]}
-            numberOfLines={1}
-          >
-            {product.priceLabel}
-          </Text>
         </View>
       </TouchableOpacity>
 
@@ -163,11 +166,6 @@ const styles = StyleSheet.create({
   titleTablet: {
     fontSize: 16,
   },
-  soldOut: {
-    color: "#C62828",
-    fontWeight: "500",
-    fontSize: 13,
-  },
   rightCol: {
     flexDirection: "row",
     alignItems: "center",
@@ -187,6 +185,24 @@ const styles = StyleSheet.create({
   },
   priceTablet: {
     fontSize: 16,
+  },
+  soldOutBtn: {
+    minWidth: 88,
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "#B8BCC4",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(55, 65, 81, 0.12)",
+  },
+  soldOutBtnText: {
+    color: "#FFFFFF",
+    fontFamily: "PoppinsBold",
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   details: {
     marginTop: 10,

@@ -185,65 +185,77 @@ export default function HomeEventCard({
           {
             paddingHorizontal: COMPACT.textPaddingX,
             paddingVertical: COMPACT.textPaddingY,
-            gap: COMPACT.textLineGap,
             minHeight: 96,
           },
         ]}
       >
-        <View style={styles.titleBox}>
-          <Text style={styles.title} numberOfLines={2}>
-            {rawName}
-          </Text>
-        </View>
-        {dateTimeLabel ? (
-          <View style={styles.metaRow}>
-            <Feather
-              name="calendar"
-              size={META_ICON_SIZE}
-              color={AppColors.accent}
-              style={styles.metaIcon}
-            />
-            <Text style={styles.meta} numberOfLines={1}>
-              {dateTimeLabel}
+        <View style={[styles.topBlock, { gap: COMPACT.textLineGap }]}>
+          <View style={styles.titleBox}>
+            <Text style={styles.title} numberOfLines={2}>
+              {rawName}
             </Text>
           </View>
-        ) : null}
-        {venueLabel ? (
-          <View style={styles.metaRow}>
-            <Feather
-              name="map-pin"
-              size={META_ICON_SIZE}
-              color={AppColors.accent}
-              style={styles.metaIcon}
-            />
-            <Text style={styles.meta} numberOfLines={1}>
-              {venueLabel}
-            </Text>
-          </View>
-        ) : null}
-
-        <View style={styles.dividerWrap}>
-          <View style={styles.divider} />
-        </View>
-
-        <View style={styles.footer}>
-          {priceLabel ? (
-            <View style={styles.priceLine}>
-              <Text style={styles.priceCaption} numberOfLines={1}>
-                {t("ticketPriceLabel")}
-              </Text>
-              <Text style={styles.priceAmount} numberOfLines={1}>
-                {priceLabel}
+          {dateTimeLabel ? (
+            <View style={styles.metaRow}>
+              <Feather
+                name="calendar"
+                size={META_ICON_SIZE}
+                color={AppColors.accent}
+                style={styles.metaIcon}
+              />
+              <Text style={styles.meta} numberOfLines={1}>
+                {dateTimeLabel}
               </Text>
             </View>
-          ) : (
-            <View />
-          )}
-          <View style={styles.buyBox}>
-            <Text style={styles.buyLabel} numberOfLines={1}>
-              {t("buy")}
-            </Text>
-            <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
+          ) : null}
+          {venueLabel ? (
+            <View style={styles.metaRow}>
+              <Feather
+                name="map-pin"
+                size={META_ICON_SIZE}
+                color={AppColors.accent}
+                style={styles.metaIcon}
+              />
+              <Text style={styles.meta} numberOfLines={1}>
+                {venueLabel}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Çizgi üst/alt = kenar padding (buton sağ/alt boşluğu ile aynı) */}
+        <View style={styles.bottomBlock}>
+          <View
+            style={[
+              styles.dividerWrap,
+              {
+                paddingTop: COMPACT.textPaddingY,
+                paddingBottom: COMPACT.textPaddingY,
+              },
+            ]}
+          >
+            <View style={styles.divider} />
+          </View>
+
+          <View style={styles.footer}>
+            {priceLabel ? (
+              <View style={styles.priceLine}>
+                <Text style={styles.priceCaption} numberOfLines={1}>
+                  {t("ticketPriceLabel")}
+                </Text>
+                <Text style={styles.priceAmount} numberOfLines={1}>
+                  {priceLabel}
+                </Text>
+              </View>
+            ) : (
+              <View />
+            )}
+            <View style={styles.buyBox}>
+              <Text style={styles.buyLabel} numberOfLines={1}>
+                {t("buy")}
+              </Text>
+              <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
+            </View>
           </View>
         </View>
       </View>
@@ -348,6 +360,10 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
   },
+  topBlock: {
+    flexShrink: 0,
+    minWidth: 0,
+  },
   title: {
     color: AppColors.heading,
     fontFamily: "PoppinsBold",
@@ -376,11 +392,13 @@ const styles = StyleSheet.create({
     fontSize: CARD_META_SIZE,
     lineHeight: Math.round(CARD_META_SIZE * 1.25),
   },
-  /** Mekan ile fiyat arasındaki boşluğu doldurur; çizgi tam ortada → üst/alt mesafe eşit */
+  bottomBlock: {
+    marginTop: "auto",
+    flexShrink: 0,
+  },
+  /** Çizgi üst/alt = kenar padding */
   dividerWrap: {
-    flexGrow: 1,
-    minHeight: 8,
-    justifyContent: "center",
+    flexShrink: 0,
   },
   divider: {
     height: 1,

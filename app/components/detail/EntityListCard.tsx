@@ -92,51 +92,62 @@ export default function EntityListCard({
         style={{
           paddingHorizontal: ENTITY_LIST_CARD.textPad,
           paddingVertical: ENTITY_LIST_CARD.textPad,
-          gap: ENTITY_LIST_CARD.lineGap,
           flex: 1,
           zIndex: 1,
         }}
       >
-        <Text style={styles.title} numberOfLines={2}>
-          {name}
-        </Text>
-        {categoryLabel ? (
-          <View style={styles.metaRow}>
-            <Feather
-              name="tag"
-              size={META_ICON_SIZE}
-              color={AppColors.accent}
-              style={styles.metaIcon}
-            />
-            <Text style={styles.meta} numberOfLines={1}>
-              {categoryLabel}
-            </Text>
-          </View>
-        ) : null}
-        {cityLabel ? (
-          <View style={styles.metaRow}>
-            <Feather
-              name="map-pin"
-              size={META_ICON_SIZE}
-              color={AppColors.accent}
-              style={styles.metaIcon}
-            />
-            <Text style={styles.meta} numberOfLines={1}>
-              {cityLabel}
-            </Text>
-          </View>
-        ) : null}
-
-        <View style={styles.dividerWrap}>
-          <View style={styles.divider} />
+        <View style={[styles.topBlock, { gap: ENTITY_LIST_CARD.lineGap }]}>
+          <Text style={styles.title} numberOfLines={2}>
+            {name}
+          </Text>
+          {categoryLabel ? (
+            <View style={styles.metaRow}>
+              <Feather
+                name="tag"
+                size={META_ICON_SIZE}
+                color={AppColors.accent}
+                style={styles.metaIcon}
+              />
+              <Text style={styles.meta} numberOfLines={1}>
+                {categoryLabel}
+              </Text>
+            </View>
+          ) : null}
+          {cityLabel ? (
+            <View style={styles.metaRow}>
+              <Feather
+                name="map-pin"
+                size={META_ICON_SIZE}
+                color={AppColors.accent}
+                style={styles.metaIcon}
+              />
+              <Text style={styles.meta} numberOfLines={1}>
+                {cityLabel}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
-        <View style={styles.footer}>
-          <View style={styles.viewButton}>
-            <Text style={styles.viewLabel} numberOfLines={1}>
-              {t("view")}
-            </Text>
-            <Feather name="chevron-right" size={12} color="#FFFFFF" />
+        <View style={styles.bottomBlock}>
+          <View
+            style={[
+              styles.dividerWrap,
+              {
+                paddingTop: ENTITY_LIST_CARD.textPad,
+                paddingBottom: ENTITY_LIST_CARD.textPad,
+              },
+            ]}
+          >
+            <View style={styles.divider} />
+          </View>
+
+          <View style={styles.footer}>
+            <View style={styles.viewButton}>
+              <Text style={styles.viewLabel} numberOfLines={1}>
+                {t("view")}
+              </Text>
+              <Feather name="chevron-right" size={12} color="#FFFFFF" />
+            </View>
           </View>
         </View>
       </View>
@@ -192,11 +203,17 @@ const styles = StyleSheet.create({
     fontSize: ENTITY_LIST_CARD.metaSize,
     color: "#4B5563",
   },
-  /** Bilgi satırları ile buton arasını doldurur; çizgi tam ortada → üst/alt mesafe eşit */
+  topBlock: {
+    flexShrink: 0,
+    minWidth: 0,
+  },
+  bottomBlock: {
+    marginTop: "auto",
+    flexShrink: 0,
+  },
+  /** Çizgi üst/alt = kenar padding */
   dividerWrap: {
-    flexGrow: 1,
-    minHeight: 8,
-    justifyContent: "center",
+    flexShrink: 0,
   },
   divider: {
     height: 1,

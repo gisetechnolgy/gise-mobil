@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { AppColors } from "../../constants/colors";
 import {
   HOME_SECTION_CARD_GAP,
   MOBILE_HOME_SECTION_HEADER_GAP,
@@ -121,7 +122,7 @@ const EventsSection = forwardRef<SectionReloadHandle, Props>(
             <Ionicons
               name="chevron-forward"
               size={chrome.seeAllChevron}
-              color="#FFFFFF"
+              color={AppColors.accent}
               style={{ marginLeft: 3 }}
             />
           </TouchableOpacity>

@@ -90,9 +90,6 @@ function SelectableProductRow({
                 amount: formatMoneyTl(fullPrice),
               })}`
             : ""}
-          {product.soldOut ? (
-            <Text style={styles.soldOut}> {soldOutLabel}</Text>
-          ) : null}
         </Text>
         {canExpand ? (
           <View style={styles.chevronWrap}>
@@ -652,12 +649,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
   },
-  soldOut: {
-    color: "#C62828",
-    fontFamily: "PoppinsMedium",
-    fontSize: 13,
-    textTransform: "none",
-  },
   chevronWrap: {
     width: 32,
     height: 32,
@@ -739,17 +730,21 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   soldOutBtn: {
-    width: 104,
+    minWidth: 104,
     height: 38,
+    paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: "#D9DCE1",
+    backgroundColor: "#B8BCC4",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(55, 65, 81, 0.12)",
   },
   soldOutBtnText: {
     color: "#FFFFFF",
     fontFamily: "PoppinsBold",
     fontSize: 13,
+    letterSpacing: 0.2,
   },
   metaIcon: {
     width: 26,

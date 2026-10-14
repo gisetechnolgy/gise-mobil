@@ -13,6 +13,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { AppColors } from "../../constants/colors";
 import {
   HOME_SECTION_CARD_GAP,
   HOME_SECTION_FOOTER_GAP,
@@ -227,7 +228,8 @@ const HomeSections = forwardRef<SectionReloadHandle, SectionLoadingProps>(
                     flexDirection: "row",
                     alignItems: "center",
                     flexShrink: 0,
-                    gap: 6,
+                    /** Başlık yazısı ↔ kontroller ile aynı (paddingRight: 8) */
+                    gap: 8,
                     minHeight: chrome.height,
                   }}
                 >
@@ -253,7 +255,7 @@ const HomeSections = forwardRef<SectionReloadHandle, SectionLoadingProps>(
                     <Ionicons
                       name="chevron-forward"
                       size={chrome.seeAllChevron}
-                      color="#FFFFFF"
+                      color={AppColors.accent}
                       style={{ marginLeft: 3 }}
                     />
                   </TouchableOpacity>

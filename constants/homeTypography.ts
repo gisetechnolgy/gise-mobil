@@ -48,10 +48,12 @@ export function getHomeSectionChrome(screenWidth: number): HomeSectionChrome {
   const t = chromeT(screenWidth);
   return {
     height: Math.round(lerp(31, 36, t)),
-    seeAllPadX: Math.round(lerp(12, 16, t)),
+    /** Yatay padding yok — yazı↔değiştirici boşluğu sadece gap (8) = başlık pr */
+    seeAllPadX: 0,
     seeAllRadius: Math.round(lerp(7, 8, t)),
-    seeAllFont: Math.round(lerp(11, 13, t)),
-    seeAllChevron: Math.round(lerp(9, 11, t)),
+    /** Satın Al (COMPACT.buySize = 13) ile aynı */
+    seeAllFont: 13,
+    seeAllChevron: Math.round(lerp(11, 13, t)),
     toggleSegment: Math.round(lerp(30, 34, t)),
     toggleIcon: Math.round(lerp(13, 15, t)),
     toggleRadius: Math.round(lerp(7, 8, t)),
@@ -63,21 +65,24 @@ export function homeSeeAllButtonStyle(screenWidth?: number): ViewStyle {
   const c = getHomeSectionChrome(screenWidth ?? CHROME_PHONE_W);
   return {
     height: c.height,
-    paddingHorizontal: c.seeAllPadX,
-    borderRadius: c.seeAllRadius,
-    backgroundColor: AppColors.accent,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    borderRadius: 0,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
   };
 }
 
-/** Web "Tümünü Göster" buton içi metin */
+/** Web "Tümünü Göster" buton içi metin — global renk, arka plan yok */
 export function homeSeeAllStyle(screenWidth?: number): TextStyle {
   const c = getHomeSectionChrome(screenWidth ?? CHROME_PHONE_W);
   return {
     fontFamily: 'PoppinsBold',
-    color: '#FFFFFF',
+    color: AppColors.accent,
     fontSize: c.seeAllFont,
   };
 }
